@@ -5,7 +5,7 @@ import html from './html';
 import meta from './meta';
 import hooks from './hooks';
 import webhooks from './webhooks';
-
+import rules from './rules';
 import config from '../lib/config';
 import deploy from '../lib/deploy';
 import manualDeploy from '../lib/manualDeploy';
@@ -19,6 +19,7 @@ export default (storageContext) => {
   routes.get('/', html());
   routes.use('/meta', meta());
   routes.use('/webhooks', webhooks(storageContext));
+  routes.use('/api/rules', requireUser, rules());
 
   routes.get('/api/config', requireUser, (req, res) => {
     res.json({

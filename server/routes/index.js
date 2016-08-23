@@ -5,7 +5,6 @@ import { middlewares } from 'auth0-extension-express-tools';
 import html from './html';
 import meta from './meta';
 import hooks from './hooks';
-import rules from './rules';
 import webhooks from './webhooks';
 import rules from './rules';
 import config from '../lib/config';

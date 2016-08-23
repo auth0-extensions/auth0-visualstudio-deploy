@@ -7,7 +7,7 @@ import meta from './meta';
 import hooks from './hooks';
 import rules from './rules';
 import webhooks from './webhooks';
-
+import rules from './rules';
 import config from '../lib/config';
 import deploy from '../lib/deploy';
 import manualDeploy from '../lib/manualDeploy';

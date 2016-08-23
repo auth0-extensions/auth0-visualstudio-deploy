@@ -7,7 +7,7 @@ import meta from './meta';
 import hooks from './hooks';
 import rules from './rules';
 import webhooks from './webhooks';
-
+import rules from './rules';
 import config from '../lib/config';
 import deploy from '../lib/deploy';
 import manualDeploy from '../lib/manualDeploy';
@@ -27,8 +27,8 @@ export default () => {
   routes.use('/', dashboardAdmins());
   routes.get('/', html());
   routes.use('/meta', meta());
-  routes.use('/rules', rules());
   routes.use('/webhooks', webhooks());
+  routes.use('/api/rules', requireUser, rules());
 
   routes.get('/api/config', requireUser, (req, res) => {
     res.json({

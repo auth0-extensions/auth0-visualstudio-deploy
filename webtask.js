@@ -5,7 +5,7 @@ const expressApp = require('./server');
 const logger = require('./server/lib/logger');
 
 module.exports = tools.createExpressServer(function(req, configProvider) {
-  logger.info('Starting Delegated Administration extension - Version:', config('CLIENT_VERSION'));
+  logger.info('Starting Delegated Administration extension - Version:', configProvider('CLIENT_VERSION'));
   config.setProvider(configProvider);
   return expressApp();
 });

@@ -11,10 +11,20 @@ import request from 'request-promise';
 /*
  * TFS API connection
  */
-const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
-const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
-const tfvcApi = vsConnection.getQTfvcApi();
+let tfvcApi = null;
+
+const getApi = () => {
+  if (!tfvcApi) {
+    const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
+    const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
+    const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
+    tfvcApi = vsConnection.getQTfvcApi();
+  }
+
+  return tfvcApi;
+};
+
+
 
 /*
  * Check if a file is part of the rules folder.
@@ -64,7 +74,7 @@ const validFilesOnly = (fileName) => {
  * Get a flat list of changes and files that need to be added/updated/removed.
  */
 export const hasChanges = (changesetId) =>
-  tfvcApi.getChangesetChanges(changesetId).then(data =>
+  getApi().getChangesetChanges(changesetId).then(data =>
   _.chain(data)
     .map(file => file.item.path)
     .flattenDeep()
@@ -80,7 +90,7 @@ export const hasChanges = (changesetId) =>
 const getRulesTree = (project, changesetId) =>
   new Promise((resolve, reject) => {
     try {
-      tfvcApi.getItems(project, `${config('TFS_PATH')}/${constants.RULES_DIRECTORY}`).then(data => {
+      getApi().getItems(project, `${config('TFS_PATH')}/${constants.RULES_DIRECTORY}`).then(data => {
         if (!data) {
           return resolve([]);
         }
@@ -103,7 +113,7 @@ const getRulesTree = (project, changesetId) =>
 const getConnectionTreeByPath = (project, branch, path) =>
   new Promise((resolve, reject) => {
     try {
-      tfvcApi.getItems(project, path).then(data => {
+      getApi().getItems(project, path).then(data => {
         if (!data) {
           return resolve([]);
         }
@@ -125,7 +135,7 @@ const getConnectionTreeByPath = (project, branch, path) =>
 const getConnectionsTree = (project, branch) =>
   new Promise((resolve, reject) => {
     try {
-      tfvcApi.getItems(project, `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`).then(data => {
+      getApi().getItems(project, `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`).then(data => {
         if (!data) {
           return resolve([]);
         }

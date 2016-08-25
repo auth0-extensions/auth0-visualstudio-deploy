@@ -1,9 +1,9 @@
 const tools = require('auth0-extension-tools');
 
-const config = require('./server/lib/config');
 const expressApp = require('./server');
+const logger = require('./server/lib/logger');
 
-module.exports = tools.createExpressServer(function(req, configProvider) {
-  config.setProvider(configProvider);
-  return expressApp();
+module.exports = tools.createExpressServer(function(req, config) {
+  logger.info('Starting VisualStudio deploy extension - Version:', config('CLIENT_VERSION'));
+  return expressApp(config);
 });

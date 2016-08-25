@@ -10,10 +10,18 @@ import * as constants from './constants';
 /*
  * TFS API connection
  */
-const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
-const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
-const gitApi = vsConnection.getQGitApi();
+let gitApi = null;
+
+const getApi = () => {
+    if (!gitApi) {
+      const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
+      const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
+      const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
+      gitApi = vsConnection.getQGitApi();
+    }
+
+    return gitApi;
+};
 
 /*
  * Check if a file is part of the rules folder.
@@ -71,7 +79,7 @@ export const hasChanges = (commits, repoId) =>
       let files = [];
 
       commits.forEach(commit => {
-        promisses.push(gitApi.getChanges(commit.commitId, repoId).then(data => {
+        promisses.push(getApi().getChanges(commit.commitId, repoId).then(data => {
           files = files.concat(data.changes);
         }));
       });
@@ -117,7 +125,7 @@ const getCommitId = (repositoryId, branch) =>
     }
 
     try {
-      gitApi.getBranch(repositoryId, branch)
+      getApi().getBranch(repositoryId, branch)
         .then(data => {
           if (data) {
             return resolve(data.commit.commitId);
@@ -138,8 +146,8 @@ const getCommitId = (repositoryId, branch) =>
 const getTree = (repositoryId, branch) =>
   new Promise((resolve, reject) => {
     getCommitId(repositoryId, branch)
-      .then(commitId => gitApi.getCommit(commitId, repositoryId))
-      .then(commit => gitApi.getTree(repositoryId, commit.treeId, null, null, true))
+      .then(commitId => getApi().getCommit(commitId, repositoryId))
+      .then(commit => getApi().getTree(repositoryId, commit.treeId, null, null, true))
       .then(data =>
         resolve(data.treeEntries
           .filter(f => f.gitObjectType === 3)
@@ -154,7 +162,7 @@ const getTree = (repositoryId, branch) =>
 const downloadFile = (repositoryId, branch, file) =>
   new Promise((resolve, reject) => {
     try {
-      gitApi.getBlobContent(repositoryId, file.id, null, true).then(data => {
+      getApi().getBlobContent(repositoryId, file.id, null, true).then(data => {
         if (data) {
           let result = '';
 
@@ -303,7 +311,7 @@ export const getChanges = (repositoryId, branch) =>
  * Get a repository id by name.
  */
 export const getRepositoryId = (name) =>
-  gitApi.getRepositories()
+  getApi().getRepositories()
     .then(repositories => {
       if (!repositories)
         return null;

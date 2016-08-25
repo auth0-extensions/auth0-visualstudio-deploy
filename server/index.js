@@ -3,14 +3,11 @@ import morgan from 'morgan';
 import Express from 'express';
 import bodyParser from 'body-parser';
 
-import config from './lib/config';
 import routes from './routes';
 import logger from './lib/logger';
 import * as middlewares from './lib/middlewares';
 
-module.exports = (configProvider) => {
-  if (configProvider) config.setProvider(configProvider);
-
+module.exports = () => {
   const app = new Express();
   app.use(morgan(':method :url :status :response-time ms - :res[content-length]', {
     stream: logger.stream

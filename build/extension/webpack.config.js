@@ -51,7 +51,14 @@ module.exports = externalModules.then((externals) => {
   // externals.compatible['validate.js'] = false;
 
   // Transform to commonjs.
-  Object.keys(externals.compatible).forEach(k => { externals.compatible[k] = 'commonjs ' + k; });
+  Object.keys(externals.compatible).forEach(k => {
+    if (externals.compatible[k] === true) {
+      externals.compatible[k] = 'commonjs ' + k;
+    } else {
+      externals.compatible[k] = 'commonjs ' + externals.compatible[k];
+    }
+    console.log('External:', externals.compatible[k]);
+  });
 
   return {
     entry: path.join(__dirname, '../../webtask'),

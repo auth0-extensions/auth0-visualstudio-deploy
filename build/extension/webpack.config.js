@@ -39,6 +39,7 @@ module.exports = externalModules.then((externals) => {
   externals.compatible['vso-node-api'] = true;
 
   // Additional dependencies that are available in webtask.
+  externals.compatible['auth0'] = 'auth0@2.1.0';
   externals.compatible['nconf'] = true;
   externals.compatible['node-uuid'] = true;
   externals.compatible['jade'] = true;
@@ -46,7 +47,6 @@ module.exports = externalModules.then((externals) => {
   externals.compatible['debug'] = true;
   externals.compatible['body-parser'] = true;
   externals.compatible['mime-types'] = true;
-  externals.compatible['auth0@2.1.0'] = true;
   externals.compatible['webtask-tools'] = true;
   // externals.compatible['validate.js'] = false;
 

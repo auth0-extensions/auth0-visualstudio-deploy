@@ -24,19 +24,24 @@ const getApi = () => {
   return tfvcApi;
 };
 
-
-
 /*
  * Check if a file is part of the rules folder.
  */
-const isRule = (fileName) =>
-fileName.indexOf(`${config('TFS_PATH')}/${constants.RULES_DIRECTORY}/`) === 0;
+const isRule = (file) =>
+  file.indexOf(`${config('TFS_PATH')}/${constants.RULES_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the database folder.
  */
-const isDatabaseConnection = (fileName) =>
-fileName.indexOf(`${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+const isDatabaseConnection = (file) =>
+  file.indexOf(`${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+
+/*
+ * Check if a file is part of the pages folder.
+ */
+const isPage = (file) =>
+  file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
+  && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
  * Get the details of a database file script.
@@ -60,7 +65,9 @@ const getDatabaseScriptDetails = (filename) => {
  * Only Javascript and JSON files.
  */
 const validFilesOnly = (fileName) => {
-  if (isRule(fileName)) {
+  if (isPage(fileName)) {
+    return true;
+  } else if (isRule(fileName)) {
     return /\.(js|json)$/i.test(fileName);
   } else if (isDatabaseConnection(fileName)) {
     const script = getDatabaseScriptDetails(fileName);
@@ -280,7 +287,7 @@ const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
 /*
  * Get all database scripts.
  */
-const getDatabaseScripts = (repositoryId, branch, files) => {
+const getDatabaseScripts = (changesetId, files) => {
   const databases = {};
 
   _.filter(files, f => isDatabaseConnection(f.path)).forEach(file => {
@@ -295,7 +302,54 @@ const getDatabaseScripts = (repositoryId, branch, files) => {
     }
   });
 
-  return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(branch, databaseName, databases[databaseName]), {concurrency: 2});
+  return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(changesetId, databaseName, databases[databaseName]), {concurrency: 2});
+};
+
+/*
+ * Download a single page script.
+ */
+const downloadPage = (changesetId, pageName, page) => {
+  const downloads = [];
+  const currentPage = {
+    ...page,
+    name: pageName
+  };
+
+  if (page.file) {
+    downloads.push(downloadFile(file, changesetId)
+      .then(file => {
+        currentPage.contents = file.contents;
+      }));
+  }
+
+  return Promise.all(downloads).then(() => currentPage);
+};
+
+/*
+ * Get all pages.
+ */
+const getPages = (changesetId, files) => {
+  const pages = {};
+
+  // Determine if we have the script, the metadata or both.
+  _.filter(files, f => isPage(f.path)).forEach(file => {
+    const pageName = path.parse(file.path).name;
+    const ext = path.parse(file.path).ext;
+    const index = pageName + ext;
+
+    pages[index] = pages[pageName] || {};
+    pages[index].file = file;
+    pages[index].contents = null;
+    pages[index].sha = file.sha;
+    pages[index].path = file.path;
+
+    if(ext != 'json') {
+      pages[index].meta = path.parse(file.path).name + '.json';
+    }
+  });
+
+  return Promise.map(Object.keys(pages), (pageName) =>
+    downloadPage(changesetId, pageName, pages[pageName]), {concurrency: 2});
 };
 
 /*
@@ -309,13 +363,15 @@ export const getChanges = (project, changesetId) =>
 
         const promises = {
           rules: getRules(changesetId, files),
-          databases: getDatabaseScripts(changesetId, files)
+          databases: getDatabaseScripts(changesetId, files),
+          pages: getPages(changesetId, files)
         };
 
         Promise.props(promises)
           .then((result) => resolve({
             rules: result.rules,
-            databases: result.databases
+            databases: result.databases,
+            pages: result.pages
           }));
       })
       .catch(e => reject(e));

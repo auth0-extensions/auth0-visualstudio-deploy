@@ -5,8 +5,8 @@ const tools = require('auth0-extension-tools');
 
 import auth0 from '../server/lib/auth0';
 import config from '../server/lib/config';
-import { getRepositoryId, getChanges as gitChanges } from '../server/lib/tfs-git';
-import { getChanges as vcChanges } from '../server/lib/tfs-tfvc';
+import {getRepositoryId, getChanges as gitChanges} from '../server/lib/tfs-git';
+import {getChanges as vcChanges} from '../server/lib/tfs-tfvc';
 
 const progress = {log: () => null};
 let repoId = null;
@@ -27,16 +27,6 @@ describe.only('managementApiClient', () => {
 
     config.setProvider((key) => nconf.get(key), null);
   });
-
-
-// "TFS_BRANCH": "master",
-//   "TFS_TOKEN": "giwexqfkrok7nlhj7vxwmjlmt3k5omjrpnmdgppzewr4pasjkjja",
-//   "TFS_COLLECTION": "DefaultCollection",
-//   "TFS_USERNAME": "zxan1285",
-//   "TFS_TYPE": "git",
-//   "TFS_PATH": "$/auth0-rules/dev",
-//   "TFS_PROJECT": "MyFirstProject",
-//   "TFS_INSTANCE": "zxan1285",
 
   describe('#getRepositoryId', () => {
     it('should get repo id', (done) => {
@@ -174,6 +164,47 @@ describe.only('managementApiClient', () => {
   describe('#deleteRules', () => {
     it('should delete all rules', (done) => {
       auth0.deleteRules(progress, client, [], []).then(() => {
+        done();
+      });
+    });
+  });
+
+  describe('#updateLoginPage', () => {
+    it('should update custom login page', (done) => {
+      const data = [
+        {
+          contents: '<html>\n<head></head>\n\n<body> \n<h1> Login Page </h1>\n</body>\n</html>',
+          meta: 'login.json',
+          name: 'login.html'
+        },
+        {
+          contents: '{\n\t"enabled": false\n}',
+          meta: 'login.json',
+          name: 'login.json'
+        }];
+
+      auth0.updateLoginPage(progress, client, data).then(() => {
+        done();
+      });
+    });
+  });
+
+  describe('#updatePasswordPage', () => {
+    it('should update custom password page', (done) => {
+      const data = [
+        {
+          contents: '<html>\n<head></head>\n\n<body> \n<h1> Reset Password Page </h1>\n</body>\n</html>',
+          meta: 'password_reset.json',
+          name: 'password_reset.html'
+        },
+        {
+          contents: '{\n\t"enabled": false\n}',
+          meta: 'password_reset.json',
+          name: 'password_reset.json'
+        }
+      ];
+
+      auth0.updatePasswordResetPage(progress, client, data).then(() => {
         done();
       });
     });

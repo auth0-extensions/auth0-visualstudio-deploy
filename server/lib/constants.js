@@ -4,6 +4,13 @@ export const DATABASE_CONNECTIONS_DIRECTORY = 'database-connections';
 
 export const PAGES_DIRECTORY = 'pages';
 
+export const PAGE_NAMES = [
+  'password_reset.html',
+  'password_reset.json',
+  'login.html',
+  'login.json'
+];
+
 export const DATABASE_SCRIPTS = [
   'get_user',
   'create',

@@ -303,7 +303,7 @@ const downloadPage = (repositoryId, branch, pageName, page) => {
   };
 
   if (page.file) {
-    downloads.push(downloadFile(repositoryId, branch, file)
+    downloads.push(downloadFile(repositoryId, branch, page.file)
       .then(file => {
         currentPage.contents = file.contents;
       }));

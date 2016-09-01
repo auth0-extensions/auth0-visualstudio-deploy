@@ -51,9 +51,7 @@ export default (storage, id, repositoryId, branch, repository, sha, user, client
 
       // Send all changes to Auth0.
       storage.read()
-        .then((data) => {
-          context.excluded_rules = data.excluded_rules || [];
-        })
+        .then((data) => context.excluded_rules = data.excluded_rules || [])
         .then(() => auth0.updatePasswordResetPage(progress, context.client, context.pages))
         .then(() => auth0.updateLoginPage(progress, context.client, context.pages))
         .then(() => auth0.validateDatabases(progress,context.client, context.databases))

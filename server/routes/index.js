@@ -10,7 +10,6 @@ import rules from './rules';
 import config from '../lib/config';
 import deploy from '../lib/deploy';
 import manualDeploy from '../lib/manualDeploy';
-import { readStorage } from '../lib/storage';
 import { dashboardAdmins, requireUser, getStorage } from '../lib/middlewares';
 
 export default () => {

@@ -13,33 +13,33 @@ import * as constants from './constants';
 let gitApi = null;
 
 const getApi = () => {
-    if (!gitApi) {
-      const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-      const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
-      const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
-      gitApi = vsConnection.getQGitApi();
-    }
+  if (!gitApi) {
+    const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
+    const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
+    const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
+    gitApi = vsConnection.getQGitApi();
+  }
 
-    return gitApi;
+  return gitApi;
 };
 
 /*
  * Check if a file is part of the rules folder.
  */
 const isRule = (file) =>
-  file.indexOf(`${constants.RULES_DIRECTORY}/`) === 0;
+file.indexOf(`${constants.RULES_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the database folder.
  */
 const isDatabaseConnection = (file) =>
-  file.indexOf(`${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+file.indexOf(`${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the pages folder.
  */
 const isPage = (file) =>
-  file.indexOf(`${constants.PAGES_DIRECTORY}/`) === 0 && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
+file.indexOf(`${constants.PAGES_DIRECTORY}/`) === 0 && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
  * Get the details of a database file script.
@@ -92,7 +92,7 @@ export const hasChanges = (commits, repoId) =>
         }));
       });
 
-      Promise.all(promisses)
+      return Promise.all(promisses)
         .then(() => resolve(_.chain(files)
             .map(file => file.item.path)
             .flattenDeep()
@@ -101,27 +101,10 @@ export const hasChanges = (commits, repoId) =>
             .value()
             .length > 0))
         .catch(e => reject(e));
-    }
-    catch (e) {
+    } catch (e) {
       return reject(e);
     }
   });
-
-/*
- * Parse the repository.
- */
-const parseRepo = (repository = '') => {
-  const parts = repository.split('/');
-  if (parts.length === 2) {
-    const [ user, repo ] = parts;
-    return {user, repo};
-  } else if (parts.length === 5) {
-    const [ , , , user, repo ] = parts;
-    return {user, repo};
-  }
-
-  throw new Error(`Invalid repository: ${repository}`);
-};
 
 /*
  * Get last commitId for branch
@@ -135,16 +118,16 @@ const getCommitId = (repositoryId, branch) =>
     try {
       getApi().getBranch(repositoryId, branch)
         .then(data => {
-          if (data) {
-            return resolve(data.commit.commitId);
-          } else {
+          if (!data) {
             logger.error(`Branch '${branch}' not found`);
             return reject(new Error(`Branch '${branch}' not found`));
           }
+
+          return resolve(data.commit.commitId);
         })
         .catch(e => reject(e));
     } catch (e) {
-      reject(e);
+      return reject(e);
     }
   });
 
@@ -160,7 +143,7 @@ const getTree = (repositoryId, branch) =>
         resolve(data.treeEntries
           .filter(f => f.gitObjectType === 3)
           .filter(f => validFilesOnly(f.relativePath))
-          .map(f => ({path: f.relativePath, id: f.objectId}))))
+          .map(f => ({ path: f.relativePath, id: f.objectId }))))
       .catch(e => reject(e));
   });
 
@@ -242,7 +225,7 @@ const getRules = (repositoryId, branch, files) => {
   });
 
   // Download all rules.
-  return Promise.map(Object.keys(rules), (ruleName) => downloadRule(repositoryId, branch, ruleName, rules[ruleName]), {concurrency: 2});
+  return Promise.map(Object.keys(rules), (ruleName) => downloadRule(repositoryId, branch, ruleName, rules[ruleName]), { concurrency: 2 });
 };
 
 /*
@@ -289,7 +272,7 @@ const getDatabaseScripts = (repositoryId, branch, files) => {
     }
   });
 
-  return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(repositoryId, branch, databaseName, databases[databaseName]), {concurrency: 2});
+  return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(repositoryId, branch, databaseName, databases[databaseName]), { concurrency: 2 });
 };
 
 /*
@@ -330,13 +313,13 @@ const getPages = (repositoryId, branch, files) => {
     pages[index].sha = file.sha;
     pages[index].path = file.path;
 
-    if(ext != 'json') {
-      pages[index].meta = path.parse(file.path).name + '.json';
+    if (ext !== 'json') {
+      pages[index].meta = `${path.parse(file.path).name}.json`;
     }
   });
 
   return Promise.map(Object.keys(pages), (pageName) =>
-    downloadPage(repositoryId, branch, pageName, pages[pageName]), {concurrency: 2});
+    downloadPage(repositoryId, branch, pageName, pages[pageName]), { concurrency: 2 });
 };
 
 /*
@@ -346,7 +329,10 @@ export const getChanges = (repositoryId, branch) =>
   new Promise((resolve, reject) => {
     getTree(repositoryId, branch)
       .then(files => {
-        logger.debug(`Files in tree: ${JSON.stringify(files.map(file => ({name: file.path, id: file.id})), null, 2)}`);
+        logger.debug(`Files in tree: ${JSON.stringify(files.map(file => ({
+          name: file.path,
+          id: file.id
+        })), null, 2)}`);
 
         const promises = {
           rules: getRules(repositoryId, branch, files),
@@ -370,13 +356,12 @@ export const getChanges = (repositoryId, branch) =>
 export const getRepositoryId = (name) =>
   getApi().getRepositories()
     .then(repositories => {
-      if (!repositories)
-        return null;
+      if (!repositories) return null;
 
+      let rID = null;
       const repository = repositories.filter(f => f.name === name);
 
-      if (repository[0] && repository[0].id)
-        return repository[0].id;
-      else
-        return null;
+      if (repository[0] && repository[0].id) rID = repository[0].id;
+
+      return rID;
     });

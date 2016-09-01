@@ -28,20 +28,20 @@ const getApi = () => {
  * Check if a file is part of the rules folder.
  */
 const isRule = (file) =>
-  file.indexOf(`${config('TFS_PATH')}/${constants.RULES_DIRECTORY}/`) === 0;
+file.indexOf(`${config('TFS_PATH')}/${constants.RULES_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the database folder.
  */
 const isDatabaseConnection = (file) =>
-  file.indexOf(`${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+file.indexOf(`${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the pages folder.
  */
 const isPage = (file) =>
-  file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
-  && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
+file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
+&& constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
  * Get the details of a database file script.
@@ -94,22 +94,23 @@ export const hasChanges = (changesetId) =>
 /*
  * Get rules tree.
  */
-const getRulesTree = (project, changesetId) =>
+const getRulesTree = (project) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, `${config('TFS_PATH')}/${constants.RULES_DIRECTORY}`).then(data => {
-        if (!data) {
-          return resolve([]);
-        }
+      getApi().getItems(project, `${config('TFS_PATH')}/${constants.RULES_DIRECTORY}`)
+        .then(data => {
+          if (!data) {
+            return resolve([]);
+          }
 
-        const files = data
-          .filter(f => f.size)
-          .filter(f => validFilesOnly(f.path));
+          const files = data
+            .filter(f => f.size)
+            .filter(f => validFilesOnly(f.path));
 
-        return resolve(files);
-      }).catch(e => reject(e));
-    }
-    catch (e) {
+          return resolve(files);
+        })
+        .catch(e => reject(e));
+    } catch (e) {
       reject(e);
     }
   });
@@ -117,22 +118,23 @@ const getRulesTree = (project, changesetId) =>
 /*
  * Get pages tree.
  */
-const getPagesTree = (project, changesetId) =>
+const getPagesTree = (project) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, `${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}`).then(data => {
-        if (!data) {
-          return resolve([]);
-        }
+      getApi().getItems(project, `${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}`)
+        .then(data => {
+          if (!data) {
+            return resolve([]);
+          }
 
-        const files = data
-          .filter(f => f.size)
-          .filter(f => validFilesOnly(f.path));
+          const files = data
+            .filter(f => f.size)
+            .filter(f => validFilesOnly(f.path));
 
-        return resolve(files);
-      }).catch(e => reject(e));
-    }
-    catch (e) {
+          return resolve(files);
+        })
+        .catch(e => reject(e));
+    } catch (e) {
       reject(e);
     }
   });
@@ -140,10 +142,10 @@ const getPagesTree = (project, changesetId) =>
 /*
  * Get connection files for one db connection
  */
-const getConnectionTreeByPath = (project, branch, path) =>
+const getConnectionTreeByPath = (project, branch, filePath) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, path).then(data => {
+      getApi().getItems(project, filePath).then(data => {
         if (!data) {
           return resolve([]);
         }
@@ -165,24 +167,26 @@ const getConnectionTreeByPath = (project, branch, path) =>
 const getConnectionsTree = (project, branch) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`).then(data => {
-        if (!data) {
-          return resolve([]);
-        }
+      getApi().getItems(project, `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`)
+        .then(data => {
+          if (!data) {
+            return resolve([]);
+          }
 
-        const subdirs = data.filter(f => !f.size);
-        const promisses = [];
-        let files = [];
+          const subdirs = data.filter(f => !f.size);
+          const promisses = [];
+          let files = [];
 
-        subdirs.forEach(subdir => {
-          promisses.push(getConnectionTreeByPath(project, branch, subdir.path).then(data => {
-            files = files.concat(data);
-          }));
-        });
+          subdirs.forEach(subdir => {
+            promisses.push(getConnectionTreeByPath(project, branch, subdir.path).then(tree => {
+              files = files.concat(tree);
+            }));
+          });
 
-        Promise.all(promisses)
-          .then(() => resolve(files));
-      }).catch(e => reject(e));
+          return Promise.all(promisses)
+            .then(() => resolve(files));
+        })
+        .catch(e => reject(e));
     } catch (e) {
       reject(e);
     }
@@ -193,7 +197,7 @@ const getConnectionsTree = (project, branch) =>
  */
 const getTree = (project, changesetId) =>
   new Promise((resolve, reject) => {
-    //Getting separate trees for rules and connections, as tfsvc does not provide full (recursive) tree
+    // Getting separate trees for rules and connections, as tfsvc does not provide full (recursive) tree
     const promises = {
       rules: getRulesTree(project, changesetId),
       connections: getConnectionsTree(project, changesetId),
@@ -209,13 +213,13 @@ const getTree = (project, changesetId) =>
  * Download a single file.
  */
 const downloadFile = (file, changesetId) => {
-  const version = parseInt(changesetId) || null;
+  const version = parseInt(changesetId, 10) || null;
   const versionString = (version) ? `&version=${version}` : '';
   const auth = new Buffer(`${config('TFS_USERNAME')}:${config('TFS_TOKEN')}`).toString('base64');
 
   const options = {
     headers: {
-      'Authorization': `Basic ${auth}`,
+      Authorization: `Basic ${auth}`,
       'Content-Type': 'text/html'
     },
     uri: `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}/_apis/tfvc/items?path=${file.path}${versionString}&api-version=1.0`
@@ -279,7 +283,7 @@ const getRules = (changesetId, files) => {
   });
 
   // Download all rules.
-  return Promise.map(Object.keys(rules), (ruleName) => downloadRule(changesetId, ruleName, rules[ruleName]), {concurrency: 2});
+  return Promise.map(Object.keys(rules), (ruleName) => downloadRule(changesetId, ruleName, rules[ruleName]), { concurrency: 2 });
 };
 
 /*
@@ -326,7 +330,7 @@ const getDatabaseScripts = (changesetId, files) => {
     }
   });
 
-  return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(changesetId, databaseName, databases[databaseName]), {concurrency: 2});
+  return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(changesetId, databaseName, databases[databaseName]), { concurrency: 2 });
 };
 
 /*
@@ -367,13 +371,13 @@ const getPages = (changesetId, files) => {
     pages[index].sha = file.sha;
     pages[index].path = file.path;
 
-    if(ext != 'json') {
-      pages[index].meta = path.parse(file.path).name + '.json';
+    if (ext !== 'json') {
+      pages[index].meta = `${path.parse(file.path).name}.json`;
     }
   });
 
   return Promise.map(Object.keys(pages), (pageName) =>
-    downloadPage(changesetId, pageName, pages[pageName]), {concurrency: 2});
+    downloadPage(changesetId, pageName, pages[pageName]), { concurrency: 2 });
 };
 
 /*
@@ -383,7 +387,10 @@ export const getChanges = (project, changesetId) =>
   new Promise((resolve, reject) => {
     getTree(project, changesetId)
       .then(files => {
-        logger.debug(`Files in tree: ${JSON.stringify(files.map(file => ({name: file.path, id: file.id})), null, 2)}`);
+        logger.debug(`Files in tree: ${JSON.stringify(files.map(file => ({
+          name: file.path,
+          id: file.id
+        })), null, 2)}`);
 
         const promises = {
           rules: getRules(changesetId, files),

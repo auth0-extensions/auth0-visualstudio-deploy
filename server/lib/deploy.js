@@ -44,23 +44,25 @@ export default (storage, id, repositoryId, branch, repository, sha, user, client
   progress.log('Loading TFS tree...');
 
   return getChanges(repositoryId, sha).then(context => {
-      progress.log(`Assets: ${JSON.stringify({ id, user, ...context }, null, 2)}`);
-      progress.log(`Getting access token for ${config('AUTH0_CLIENT_ID')}/${config('AUTH0_DOMAIN')}`);
+    progress.log(`Assets: ${JSON.stringify({ id, user, ...context }, null, 2)}`);
+    progress.log(`Getting access token for ${config('AUTH0_CLIENT_ID')}/${config('AUTH0_DOMAIN')}`);
 
-      context.client = client;
+    context.client = client;
 
-      // Send all changes to Auth0.
-      storage.read()
-        .then((data) => context.excluded_rules = data.excluded_rules || [])
-        .then(() => auth0.updatePasswordResetPage(progress, context.client, context.pages))
-        .then(() => auth0.updateLoginPage(progress, context.client, context.pages))
-        .then(() => auth0.validateDatabases(progress,context.client, context.databases))
-        .then(() => auth0.validateRules(progress,context.client, context.rules, context.excluded_rules))
-        .then(() => auth0.updateDatabases(progress, context.client, context.databases))
-        .then(() => auth0.deleteRules(progress, context.client, context.rules, context.excluded_rules))
-        .then(() => auth0.updateRules(progress, context.client, context.rules))
-        .then(() => progress.log('Done.'));
-    })
+    // Send all changes to Auth0.
+    storage.read()
+      .then(data => {
+        context.excluded_rules = data.excluded_rules || [];
+      })
+      .then(() => auth0.updatePasswordResetPage(progress, context.client, context.pages))
+      .then(() => auth0.updateLoginPage(progress, context.client, context.pages))
+      .then(() => auth0.validateDatabases(progress, context.client, context.databases))
+      .then(() => auth0.validateRules(progress, context.client, context.rules, context.excluded_rules))
+      .then(() => auth0.updateDatabases(progress, context.client, context.databases))
+      .then(() => auth0.deleteRules(progress, context.client, context.rules, context.excluded_rules))
+      .then(() => auth0.updateRules(progress, context.client, context.rules))
+      .then(() => progress.log('Done.'));
+  })
     .then(() => appendProgress(storage, progress))
     .then(() => pushToSlack(progress, `${config('WT_URL')}/login`))
     .then(() => ({

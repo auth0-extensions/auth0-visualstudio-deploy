@@ -1,4 +1,4 @@
-import { ArgumentError, UnauthorizedError } from '../errors';
+import { UnauthorizedError } from '../errors';
 
 const parse = ({ notificationId = '', resource = {}, eventType = '' }) => {
   return {

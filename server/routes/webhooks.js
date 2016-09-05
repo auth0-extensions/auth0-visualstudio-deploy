@@ -7,7 +7,7 @@ import { hasChanges as hasGitChanges } from '../lib/tfs-git';
 import { hasChanges as hasTfvcChanges } from '../lib/tfs-tfvc';
 import { gitWebhook, tfvcWebhook } from '../lib/middlewares';
 
-export default (storageContext) => {
+export default () => {
   const tfsSecret = config('EXTENSION_SECRET');
   const webhooks = express.Router();
   const gitRoute = config('TFS_TYPE') === 'git' ? '/deploy' : '/deploy/git';
@@ -31,7 +31,7 @@ export default (storageContext) => {
       res.status(202).json({ message: `Request accepted, deployment started.` });
 
       // Deploy the changes.
-      return deploy(storageContext, id, repository_id, branch, repository, sha, user);
+      return deploy(req.storage, id, repository_id, branch, repository, sha, user, req.auth0);
     });
   });
 
@@ -53,7 +53,7 @@ export default (storageContext) => {
       res.status(202).json({ message: `Request accepted, deployment started.` });
 
       // Deploy the changes.
-      return deploy(storageContext, id, config('TFS_PROJECT'), config('TFS_PATH'), config('TFS_PROJECT'), changeset, user);
+      return deploy(req.storage, id, config('TFS_PROJECT'), config('TFS_PATH'), config('TFS_PROJECT'), changeset, user, req.auth0);
     });
   });
 

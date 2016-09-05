@@ -5,9 +5,12 @@ import bodyParser from 'body-parser';
 
 import routes from './routes';
 import logger from './lib/logger';
+const config = require('./lib/config');
 import * as middlewares from './lib/middlewares';
 
-module.exports = (storageContext) => {
+module.exports = (configProvider) => {
+  config.setProvider(configProvider);
+
   const app = new Express();
   app.use(morgan(':method :url :status :response-time ms - :res[content-length]', {
     stream: logger.stream
@@ -23,7 +26,7 @@ module.exports = (storageContext) => {
 
   // Configure routes.
   app.use('/app', Express.static(path.join(__dirname, '../dist')));
-  app.use('/', routes(storageContext));
+  app.use('/', routes());
 
   // Generic error handler.
   app.use(middlewares.errorHandler);

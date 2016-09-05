@@ -18,14 +18,16 @@ const getRules = (progress, client) => {
         .value();
       return progress.rules;
     });
-};
+}
 
 /*
  * Delete a rule.
  */
-const deleteRule = (progress, client, rules, existingRule) => {
+const deleteRule = (progress, client, rules, existingRule, excluded) => {
   const rule = _.find(rules, { name: existingRule.name });
-  if (!rule && existingRule.stage === constants.DEFAULT_RULE_STAGE) {
+  const isExcluded = excluded.indexOf(existingRule.name) >= 0;
+
+  if (!rule && !isExcluded) {
     progress.rulesDeleted++;
     progress.log(`Deleting rule ${existingRule.name} (${existingRule.id})`);
     return client.rules.delete({ id: existingRule.id });
@@ -37,13 +39,13 @@ const deleteRule = (progress, client, rules, existingRule) => {
 /*
  * Delete all rules.
  */
-export const deleteRules = (progress, client, rules) => {
+export const deleteRules = (progress, client, rules, excluded) => {
   progress.log('Deleting rules that no longer exist in the repository...');
 
   return getRules(progress, client)
     .then(existingRules => {
       progress.log(`Existing rules: ${JSON.stringify(existingRules.map(rule => ({ id: rule.id, name: rule.name, stage: rule.stage, order: rule.order })), null, 2)}`);
-      return Promise.map(existingRules, (rule) => deleteRule(progress, client, rules, rule), { concurrency: constants.CONCURRENT_CALLS });
+      return Promise.map(existingRules, (rule) => deleteRule(progress, client, rules, rule, excluded), { concurrency: constants.CONCURRENT_CALLS });
     });
 };
 
@@ -54,6 +56,7 @@ const updateRule = (progress, client, existingRules, ruleName, ruleData) => {
   progress.log(`Processing rule '${ruleName}'`);
 
   const rule = _.find(existingRules, { name: ruleName });
+
   if (!rule) {
     const payload = {
       enabled: true,
@@ -100,9 +103,12 @@ export const updateRules = (progress, client, rules) => {
     });
 };
 
-const validateRulesExistence = (progress, client, rules, existingRules) => new Promise((resolve, reject) => {
+const validateRulesExistence = (progress, client, rules, existingRules, excluded) => new Promise((resolve, reject) => {
   // Metadata without rules
-  const invalidRules = _.filter(rules, (rule) => rule.metadata && !rule.script).map(rule => rule.name);
+
+  const invalidRules = _.filter(rules, (rule) => excluded.indexOf(rule.name) < 0 && rule.metadata && !rule.script)
+    .map(rule => rule.name);
+
   if (invalidRules.length > 0) return reject(new ValidationError(`The following rules have metadata files, but have no script files: ${invalidRules}.`));
 
   resolve(existingRules);
@@ -110,7 +116,7 @@ const validateRulesExistence = (progress, client, rules, existingRules) => new P
 
 const validateRulesStages = (progress, client, rules, existingRules) => new Promise((resolve, reject) => {
   // Rules with invalid state
-  const invalidStages = _.filter(rules, (rule) => rule.metadata && rule.metadata.stage && constants.RULES_STAGES.indexOf(rule.metadata.stage)!=0).map(rule=> rule.name);
+  const invalidStages = _.filter(rules, (rule) => rule.metadata && rule.metadata.stage && constants.RULES_STAGES.indexOf(rule.metadata.stage)<0).map(rule=> rule.name);
   if (invalidStages.length > 0) return reject(new ValidationError(`The following rules have invalid stages set in their metadata files: ${invalidStages}. Go to https://auth0.com/docs/api/management/v2#!/Rules/post_rules to find the valid stage names.`));
 
   // Rules that changed state
@@ -145,7 +151,7 @@ const validateRulesOrder = (progress, client, rules, existingRules) => new Promi
   resolve(existingRules);
 });
 
-export const validateRules = (progress, client, rules) => {
+export const validateRules = (progress, client, rules, excluded) => {
   if (rules.length === 0) {
     return Promise.resolve(true);
   }
@@ -153,7 +159,7 @@ export const validateRules = (progress, client, rules) => {
   progress.log('Validating rules...');
 
   return getRules(progress, client)
-    .then(existingRules => validateRulesExistence(progress, client, rules, existingRules))
+    .then(existingRules => validateRulesExistence(progress, client, rules, existingRules, excluded))
     .then(existingRules => validateRulesStages(progress, client, rules, existingRules))
     .then(existingRules => validateRulesOrder(progress, client, rules, existingRules));
-};
+}

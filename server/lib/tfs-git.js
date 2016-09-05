@@ -10,22 +10,36 @@ import * as constants from './constants';
 /*
  * TFS API connection
  */
-const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
-const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
-const gitApi = vsConnection.getQGitApi();
+let gitApi = null;
+
+const getApi = () => {
+    if (!gitApi) {
+      const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
+      const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
+      const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
+      gitApi = vsConnection.getQGitApi();
+    }
+
+    return gitApi;
+};
 
 /*
  * Check if a file is part of the rules folder.
  */
-const isRule = (fileName) =>
-fileName.indexOf(`${constants.RULES_DIRECTORY}/`) === 0;
+const isRule = (file) =>
+  file.indexOf(`${constants.RULES_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the database folder.
  */
-const isDatabaseConnection = (fileName) =>
-fileName.indexOf(`${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+const isDatabaseConnection = (file) =>
+  file.indexOf(`${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+
+/*
+ * Check if a file is part of the pages folder.
+ */
+const isPage = (file) =>
+  file.indexOf(`${constants.PAGES_DIRECTORY}/`) === 0 && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
  * Get the details of a database file script.
@@ -49,7 +63,9 @@ const getDatabaseScriptDetails = (filename) => {
  * Only Javascript and JSON files.
  */
 const validFilesOnly = (fileName) => {
-  if (isRule(fileName)) {
+  if (isPage(fileName)) {
+    return true;
+  } else if (isRule(fileName)) {
     return /\.(js|json)$/i.test(fileName);
   } else if (isDatabaseConnection(fileName)) {
     const script = getDatabaseScriptDetails(fileName);
@@ -71,7 +87,7 @@ export const hasChanges = (commits, repoId) =>
       let files = [];
 
       commits.forEach(commit => {
-        promisses.push(gitApi.getChanges(commit.commitId, repoId).then(data => {
+        promisses.push(getApi().getChanges(commit.commitId, repoId).then(data => {
           files = files.concat(data.changes);
         }));
       });
@@ -117,7 +133,7 @@ const getCommitId = (repositoryId, branch) =>
     }
 
     try {
-      gitApi.getBranch(repositoryId, branch)
+      getApi().getBranch(repositoryId, branch)
         .then(data => {
           if (data) {
             return resolve(data.commit.commitId);
@@ -138,8 +154,8 @@ const getCommitId = (repositoryId, branch) =>
 const getTree = (repositoryId, branch) =>
   new Promise((resolve, reject) => {
     getCommitId(repositoryId, branch)
-      .then(commitId => gitApi.getCommit(commitId, repositoryId))
-      .then(commit => gitApi.getTree(repositoryId, commit.treeId, null, null, true))
+      .then(commitId => getApi().getCommit(commitId, repositoryId))
+      .then(commit => getApi().getTree(repositoryId, commit.treeId, null, null, true))
       .then(data =>
         resolve(data.treeEntries
           .filter(f => f.gitObjectType === 3)
@@ -154,7 +170,7 @@ const getTree = (repositoryId, branch) =>
 const downloadFile = (repositoryId, branch, file) =>
   new Promise((resolve, reject) => {
     try {
-      gitApi.getBlobContent(repositoryId, file.id, null, true).then(data => {
+      getApi().getBlobContent(repositoryId, file.id, null, true).then(data => {
         if (data) {
           let result = '';
 
@@ -277,6 +293,53 @@ const getDatabaseScripts = (repositoryId, branch, files) => {
 };
 
 /*
+ * Download a single page script.
+ */
+const downloadPage = (repositoryId, branch, pageName, page) => {
+  const downloads = [];
+  const currentPage = {
+    ...page,
+    name: pageName
+  };
+
+  if (page.file) {
+    downloads.push(downloadFile(repositoryId, branch, page.file)
+      .then(file => {
+        currentPage.contents = file.contents;
+      }));
+  }
+
+  return Promise.all(downloads).then(() => currentPage);
+};
+
+/*
+ * Get all pages.
+ */
+const getPages = (repositoryId, branch, files) => {
+  const pages = {};
+
+  // Determine if we have the script, the metadata or both.
+  _.filter(files, f => isPage(f.path)).forEach(file => {
+    const pageName = path.parse(file.path).name;
+    const ext = path.parse(file.path).ext;
+    const index = pageName + ext;
+
+    pages[index] = pages[pageName] || {};
+    pages[index].file = file;
+    pages[index].contents = null;
+    pages[index].sha = file.sha;
+    pages[index].path = file.path;
+
+    if(ext != 'json') {
+      pages[index].meta = path.parse(file.path).name + '.json';
+    }
+  });
+
+  return Promise.map(Object.keys(pages), (pageName) =>
+    downloadPage(repositoryId, branch, pageName, pages[pageName]), {concurrency: 2});
+};
+
+/*
  * Get a list of all changes that need to be applied to rules and database scripts.
  */
 export const getChanges = (repositoryId, branch) =>
@@ -287,13 +350,15 @@ export const getChanges = (repositoryId, branch) =>
 
         const promises = {
           rules: getRules(repositoryId, branch, files),
-          databases: getDatabaseScripts(repositoryId, branch, files)
+          databases: getDatabaseScripts(repositoryId, branch, files),
+          pages: getPages(repositoryId, branch, files)
         };
 
         return Promise.props(promises)
           .then(result => resolve({
             rules: result.rules,
-            databases: result.databases
+            databases: result.databases,
+            pages: result.pages
           }));
       })
       .catch(e => reject(e));
@@ -303,7 +368,7 @@ export const getChanges = (repositoryId, branch) =>
  * Get a repository id by name.
  */
 export const getRepositoryId = (name) =>
-  gitApi.getRepositories()
+  getApi().getRepositories()
     .then(repositories => {
       if (!repositories)
         return null;

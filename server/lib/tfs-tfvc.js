@@ -238,7 +238,8 @@ const downloadFile = (file, changesetId) => {
  */
 const downloadRule = (changesetId, ruleName, rule) => {
   const currentRule = {
-    ...rule,
+    script: false,
+    metadata: false,
     name: ruleName
   };
 
@@ -247,14 +248,16 @@ const downloadRule = (changesetId, ruleName, rule) => {
   if (rule.script) {
     downloads.push(downloadFile(rule.scriptFile, changesetId)
       .then(file => {
-        currentRule.script = file.contents;
+        currentRule.script = true;
+        currentRule.scriptFile = file.contents;
       }));
   }
 
   if (rule.metadata) {
     downloads.push(downloadFile(rule.metadataFile, changesetId)
       .then(file => {
-        currentRule.metadata = JSON.parse(file.contents);
+        currentRule.metadata = true;
+        currentRule.metadataFile = JSON.parse(file.contents);
       }));
   }
 
@@ -283,7 +286,7 @@ const getRules = (changesetId, files) => {
   });
 
   // Download all rules.
-  return Promise.map(Object.keys(rules), (ruleName) => downloadRule(changesetId, ruleName, rules[ruleName]), { concurrency: 2 });
+  return Promise.map(Object.keys(rules), ruleName => downloadRule(changesetId, ruleName, rules[ruleName]), { concurrency: 2 });
 };
 
 /*
@@ -291,8 +294,7 @@ const getRules = (changesetId, files) => {
  */
 const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
   const database = {
-    name: databaseName,
-    scripts: []
+    name: databaseName
   };
 
   const downloads = [];
@@ -301,8 +303,8 @@ const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
     downloads.push(downloadFile(script, changesetId)
       .then(file => {
         database.scripts.push({
-          stage: script.name,
-          contents: file.contents
+          name: script.name,
+          scriptFile: file.contents
         });
       })
     );
@@ -339,14 +341,23 @@ const getDatabaseScripts = (changesetId, files) => {
 const downloadPage = (changesetId, pageName, page) => {
   const downloads = [];
   const currentPage = {
-    ...page,
+    metadata: false,
     name: pageName
   };
 
   if (page.file) {
     downloads.push(downloadFile(page.file, changesetId)
       .then(file => {
-        currentPage.contents = file.contents;
+        currentPage.htmlFile = file.contents;
+      }));
+  }
+
+
+  if (page.meta_file) {
+    downloads.push(downloadFile(page.meta_file, changesetId)
+      .then(file => {
+        currentPage.metadata = true;
+        currentPage.metadataFile = file.contents;
       }));
   }
 
@@ -363,16 +374,16 @@ const getPages = (changesetId, files) => {
   _.filter(files, f => isPage(f.path)).forEach(file => {
     const pageName = path.parse(file.path).name;
     const ext = path.parse(file.path).ext;
-    const index = pageName + ext;
-
-    pages[index] = pages[pageName] || {};
-    pages[index].file = file;
-    pages[index].contents = null;
-    pages[index].sha = file.sha;
-    pages[index].path = file.path;
+    pages[pageName] = pages[pageName] || {};
 
     if (ext !== 'json') {
-      pages[index].meta = `${path.parse(file.path).name}.json`;
+      pages[pageName].file = file;
+      pages[pageName].sha = file.sha;
+      pages[pageName].path = file.path;
+    } else {
+      pages[pageName].meta_file = file;
+      pages[pageName].meta_sha = file.sha;
+      pages[pageName].meta_path = file.path;
     }
   });
 
@@ -399,11 +410,27 @@ export const getChanges = (project, changesetId) =>
         };
 
         Promise.props(promises)
-          .then((result) => resolve({
-            rules: result.rules,
-            databases: result.databases,
-            pages: result.pages
-          }));
+          .then((result) => {
+            const convertScripts = (data) => {
+              const converted = {};
+              _.forEach(data, item => { converted[item.name] = item; });
+
+              return converted;
+            };
+
+            const convertDatabases = (data) => {
+              const converted = [];
+              _.forEach(data, item => { converted.push(convertScripts(item)); });
+
+              return converted;
+            };
+
+            return resolve({
+              rules: convertScripts(result.rules),
+              databases: convertDatabases(result.databases),
+              pages: convertScripts(result.pages)
+            });
+          });
       })
       .catch(e => reject(e));
   });

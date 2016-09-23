@@ -1,4 +1,4 @@
-import { UnauthorizedError } from '../errors';
+import { UnauthorizedError } from 'auth0-extension-tools';
 
 module.exports = (req, res, next) => {
   if (!req.user) {

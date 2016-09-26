@@ -2,10 +2,10 @@ import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
 import vsts from 'vso-node-api';
+import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
 import config from './config';
 import logger from '../lib/logger';
-import * as constants from './constants';
 import request from 'request-promise';
 
 /*
@@ -47,7 +47,7 @@ file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
  * Get the details of a database file script.
  */
 const getDatabaseScriptDetails = (filename) => {
-  const parts = filename.split('/');
+  const parts = filename.replace(`${config('TFS_PATH')}/`, '').split('/');
   if (parts.length === 3 && /\.js$/i.test(parts[2])) {
     const scriptName = path.parse(parts[2]).name;
     if (constants.DATABASE_SCRIPTS.indexOf(scriptName) > -1) {
@@ -173,10 +173,9 @@ const getConnectionsTree = (project, branch) =>
             return resolve([]);
           }
 
-          const subdirs = data.filter(f => !f.size);
+          const subdirs = data.filter(f => f.isFolder && f.path !== `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`);
           const promisses = [];
           let files = [];
-
           subdirs.forEach(subdir => {
             promisses.push(getConnectionTreeByPath(project, branch, subdir.path).then(tree => {
               files = files.concat(tree);
@@ -302,6 +301,7 @@ const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
   scripts.forEach(script => {
     downloads.push(downloadFile(script, changesetId)
       .then(file => {
+        database.scripts = database.scripts || [];
         database.scripts.push({
           name: script.name,
           scriptFile: file.contents
@@ -410,27 +410,12 @@ export const getChanges = (project, changesetId) =>
         };
 
         Promise.props(promises)
-          .then((result) => {
-            const convertScripts = (data) => {
-              const converted = {};
-              _.forEach(data, item => { converted[item.name] = item; });
-
-              return converted;
-            };
-
-            const convertDatabases = (data) => {
-              const converted = [];
-              _.forEach(data, item => { converted.push(convertScripts(item)); });
-
-              return converted;
-            };
-
-            return resolve({
-              rules: convertScripts(result.rules),
-              databases: convertDatabases(result.databases),
-              pages: convertScripts(result.pages)
-            });
-          });
+          .then((result) =>
+            resolve({
+              rules: unifyScripts(result.rules),
+              databases: unifyDatabases(result.databases),
+              pages: unifyScripts(result.pages)
+            }));
       })
       .catch(e => reject(e));
   });

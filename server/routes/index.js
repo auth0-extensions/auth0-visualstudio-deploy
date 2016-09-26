@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { Router as router } from 'express';
 import { middlewares } from 'auth0-extension-express-tools';
+import { dashboardAdmins, requireUser } from 'auth0-source-control-extension-tools';
 
 import html from './html';
 import meta from './meta';
@@ -10,7 +11,6 @@ import rules from './rules';
 import config from '../lib/config';
 import deploy from '../lib/deploy';
 import manualDeploy from '../lib/manualDeploy';
-import { dashboardAdmins, requireUser } from '../lib/middlewares';
 
 export default (storage) => {
   const routes = router();

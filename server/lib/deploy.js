@@ -7,6 +7,14 @@ import { getChanges as getTfvcChanges } from './tfs-tfvc';
 export default (storage, id, repositoryId, branch, repository, sha, user, client) => {
   const getChanges = config('TFS_TYPE') === 'git' ? getGitChanges : getTfvcChanges;
 
-  return getChanges(repositoryId, sha)
-    .then(context => sourceDeploy({ id, branch, repository, sha, user }, context, client, storage, config));
+  const context = {
+    init: () => getChanges(repositoryId, sha)
+      .then(data => {
+        context.pages = data.pages;
+        context.rules = data.rules;
+        context.databases = data.databases;
+      })
+  };
+
+  return sourceDeploy({ id, branch, repository, sha, user }, context, client, storage, config);
 };

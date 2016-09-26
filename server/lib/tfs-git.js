@@ -2,10 +2,10 @@ import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
 import vsts from 'vso-node-api';
+import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
 import config from './config';
 import logger from '../lib/logger';
-import * as constants from './constants';
 
 /*
  * TFS API connection
@@ -116,7 +116,7 @@ const getCommitId = (repositoryId, branch) =>
     }
 
     try {
-      getApi().getBranch(repositoryId, branch)
+      return getApi().getBranch(repositoryId, branch)
         .then(data => {
           if (!data) {
             logger.error(`Branch '${branch}' not found`);
@@ -167,7 +167,7 @@ const downloadFile = (repositoryId, branch, file) =>
           }));
         } else {
           logger.error(`Error downloading '${file.path}'`);
-          return reject(new Error(`Error downloading '${file.path}'`));
+          reject(new Error(`Error downloading '${file.path}'`));
         }
       });
     } catch (e) {
@@ -342,9 +342,9 @@ export const getChanges = (repositoryId, branch) =>
 
         return Promise.props(promises)
           .then(result => resolve({
-            rules: result.rules,
-            databases: result.databases,
-            pages: result.pages
+            rules: unifyScripts(result.rules),
+            databases: unifyDatabases(result.databases),
+            pages: unifyScripts(result.pages)
           }));
       })
       .catch(e => reject(e));

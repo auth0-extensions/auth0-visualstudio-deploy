@@ -3,11 +3,11 @@ import morgan from 'morgan';
 import Express from 'express';
 import bodyParser from 'body-parser';
 import tools from 'auth0-extension-tools';
+import { middlewares } from 'auth0-extension-express-tools';
 
 import routes from './routes';
 import logger from './lib/logger';
 import config from './lib/config';
-import * as middlewares from './lib/middlewares';
 
 module.exports = (configProvider, storageProvider) => {
   config.setProvider(configProvider);

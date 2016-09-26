@@ -293,7 +293,8 @@ const getRules = (changesetId, files) => {
  */
 const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
   const database = {
-    name: databaseName
+    name: databaseName,
+    scripts: []
   };
 
   const downloads = [];
@@ -301,7 +302,6 @@ const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
   scripts.forEach(script => {
     downloads.push(downloadFile(script, changesetId)
       .then(file => {
-        database.scripts = database.scripts || [];
         database.scripts.push({
           name: script.name,
           scriptFile: file.contents

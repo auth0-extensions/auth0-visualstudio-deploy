@@ -16,5 +16,10 @@ export default (storage, id, repositoryId, branch, repository, sha, user, client
       })
   };
 
-  return sourceDeploy({ id, branch, repository, sha, user }, context, client, storage, config);
+  const slackTemplate = {
+    fallback: 'Visual Studio to Auth0 Deployment',
+    text: `Visual Studio (${config('TFS_TYPE')}) to Auth0 Deployment`
+  };
+
+  return sourceDeploy({ id, branch, repository, sha, user }, context, client, storage, config, slackTemplate);
 };

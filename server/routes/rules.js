@@ -2,7 +2,7 @@ import _ from 'lodash';
 import express from 'express';
 
 export default (storage) => {
-  const api = express.Router();
+  const api = express.Router(); // eslint-disable-line new-cap
 
   api.get('/', (req, res, next) => {
     req.auth0.rules.get()

@@ -2,11 +2,12 @@ import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
 import vsts from 'vso-node-api';
+import request from 'request-promise';
 import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
 import config from './config';
 import logger from '../lib/logger';
-import request from 'request-promise';
+
 
 /*
  * TFS API connection

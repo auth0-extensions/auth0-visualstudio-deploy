@@ -9,7 +9,7 @@ import { gitWebhook, tfvcWebhook } from '../lib/middlewares';
 
 export default (storage) => {
   const tfsSecret = config('EXTENSION_SECRET');
-  const webhooks = express.Router();
+  const webhooks = express.Router(); // eslint-disable-line new-cap
   const gitRoute = config('TFS_TYPE') === 'git' ? '/deploy' : '/deploy/git';
   const tfvcRoute = config('TFS_TYPE') === 'tfvc' ? '/deploy' : '/deploy/tfvc';
 

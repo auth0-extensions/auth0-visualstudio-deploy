@@ -21,7 +21,7 @@ export default (storage) => {
     clientSecret: config('AUTH0_CLIENT_SECRET')
   }));
   routes.use('/.extensions', hooks());
-  routes.use('/', dashboardAdmins());
+  routes.use('/', dashboardAdmins(config('AUTH0_DOMAIN'), 'Visual Studio Deployments', config('AUTH0_RTA')));
   routes.get('/', html());
   routes.use('/meta', meta());
   routes.use('/webhooks', webhooks(storage));
@@ -38,7 +38,7 @@ export default (storage) => {
 
   routes.get('/api/deployments', requireUser, (req, res, next) =>
     storage.read()
-      .then(data => res.json(_.sortByOrder(data.deployments || [], [ 'date' ], [ false ])))
+      .then(data => res.json(_.orderBy(data.deployments || [], [ 'date' ], [ 'desc' ])))
       .catch(next)
   );
 

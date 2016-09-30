@@ -9,7 +9,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "client:build": "npm run clean && cross-env NODE_ENV=production webpack --config ./build/webpack/config.prod.js --colors -p",
-    "serve:dev": "cross-env NODE_ENV=development nodemon --ignore assets/app/ --ignore build/webpack/ --ignore client/ --ignore node_modules/ ./build/webpack/server.js",
+    "serve:dev": "cross-env NODE_ENV=development && nodemon --ignore assets/app/ --ignore build/webpack/ --ignore client/ --ignore node_modules/ ./build/webpack/server.js",
     "serve:prod": "cross-env NODE_ENV=production node index.js",
     "test": "cross-env NODE_ENV=test mocha -R spec --compilers js:babel-core/register --timeout 5000 tests/deployment.js",
     "test:watch": "cross-env NODE_ENV=test mocha -R spec --compilers js:babel-core/register --timeout 5000 tests/deployment.js --watch tests/deployment.js",
@@ -19,7 +19,8 @@
     "extension:size": "cross-env NODE_ENV=production webpack -p --config ./build/extension/webpack.config.js --json > ./build/extension/bundle-size.json && node ./build/extension/bundle-size.js",
     "build": "npm run clean && npm run client:build && npm run extension:build && npm run extension:bundle",
     "win-build": "cross-env NODE_ENV=production && npm run clean && npm run client:build && npm run extension:build && npm run win-extension:bundle",
-    "tag": "git tag $npm_package_version && git push --tags"
+    "tag": "git tag $npm_package_version && git push --tags",
+    "lint:js": "eslint --ignore-path .gitignore ."
   },
   "keywords": [
     "auth0"
@@ -29,9 +30,10 @@
   "dependencies": {
     "async": "^1.5.2",
     "auth0": "^2.1.0",
-    "auth0-extension-express-tools": "^0.2.0",
-    "auth0-extension-tools": "^0.13.0",
+    "auth0-extension-express-tools": "^0.4.0",
+    "auth0-extension-tools": "^0.14.0",
     "auth0-oauth2-express": "^1.1.8",
+    "auth0-source-control-extension-tools": "*",
     "babel": "^6.5.2",
     "babel-core": "^6.9.1",
     "babel-plugin-transform-runtime": "^6.9.0",

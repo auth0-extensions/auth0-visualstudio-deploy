@@ -1,4 +1,4 @@
-import { UnauthorizedError } from '../errors';
+import { UnauthorizedError } from 'auth0-extension-tools';
 
 const parse = ({ notificationId = '', resource = {}, eventType = '' }) => {
   return {

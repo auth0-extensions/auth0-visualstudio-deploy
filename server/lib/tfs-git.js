@@ -2,10 +2,10 @@ import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
 import vsts from 'vso-node-api';
+import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
 import config from './config';
 import logger from '../lib/logger';
-import * as constants from './constants';
 
 /*
  * TFS API connection
@@ -116,7 +116,7 @@ const getCommitId = (repositoryId, branch) =>
     }
 
     try {
-      getApi().getBranch(repositoryId, branch)
+      return getApi().getBranch(repositoryId, branch)
         .then(data => {
           if (!data) {
             logger.error(`Branch '${branch}' not found`);
@@ -167,7 +167,7 @@ const downloadFile = (repositoryId, branch, file) =>
           }));
         } else {
           logger.error(`Error downloading '${file.path}'`);
-          return reject(new Error(`Error downloading '${file.path}'`));
+          reject(new Error(`Error downloading '${file.path}'`));
         }
       });
     } catch (e) {
@@ -180,7 +180,8 @@ const downloadFile = (repositoryId, branch, file) =>
  */
 const downloadRule = (repositoryId, branch, ruleName, rule) => {
   const currentRule = {
-    ...rule,
+    script: false,
+    metadata: false,
     name: ruleName
   };
 
@@ -189,14 +190,16 @@ const downloadRule = (repositoryId, branch, ruleName, rule) => {
   if (rule.script) {
     downloads.push(downloadFile(repositoryId, branch, rule.scriptFile)
       .then(file => {
-        currentRule.script = file.contents;
+        currentRule.script = true;
+        currentRule.scriptFile = file.contents;
       }));
   }
 
   if (rule.metadata) {
     downloads.push(downloadFile(repositoryId, branch, rule.metadataFile)
       .then(file => {
-        currentRule.metadata = JSON.parse(file.contents);
+        currentRule.metadata = true;
+        currentRule.metadataFile = JSON.parse(file.contents);
       }));
   }
 
@@ -243,8 +246,8 @@ const downloadDatabaseScript = (repositoryId, branch, databaseName, scripts) => 
     downloads.push(downloadFile(repositoryId, branch, script)
       .then(file => {
         database.scripts.push({
-          stage: script.name,
-          contents: file.contents
+          name: script.name,
+          scriptFile: file.contents
         });
       })
     );
@@ -281,14 +284,22 @@ const getDatabaseScripts = (repositoryId, branch, files) => {
 const downloadPage = (repositoryId, branch, pageName, page) => {
   const downloads = [];
   const currentPage = {
-    ...page,
+    metadata: false,
     name: pageName
   };
 
   if (page.file) {
     downloads.push(downloadFile(repositoryId, branch, page.file)
       .then(file => {
-        currentPage.contents = file.contents;
+        currentPage.htmlFile = file.contents;
+      }));
+  }
+
+  if (page.meta_file) {
+    downloads.push(downloadFile(repositoryId, branch, page.meta_file)
+      .then(file => {
+        currentPage.metadata = true;
+        currentPage.metadataFile = file.contents;
       }));
   }
 
@@ -305,16 +316,16 @@ const getPages = (repositoryId, branch, files) => {
   _.filter(files, f => isPage(f.path)).forEach(file => {
     const pageName = path.parse(file.path).name;
     const ext = path.parse(file.path).ext;
-    const index = pageName + ext;
-
-    pages[index] = pages[pageName] || {};
-    pages[index].file = file;
-    pages[index].contents = null;
-    pages[index].sha = file.sha;
-    pages[index].path = file.path;
+    pages[pageName] = pages[pageName] || {};
 
     if (ext !== 'json') {
-      pages[index].meta = `${path.parse(file.path).name}.json`;
+      pages[pageName].file = file;
+      pages[pageName].sha = file.sha;
+      pages[pageName].path = file.path;
+    } else {
+      pages[pageName].meta_file = file;
+      pages[pageName].meta_sha = file.sha;
+      pages[pageName].meta_path = file.path;
     }
   });
 
@@ -342,9 +353,9 @@ export const getChanges = (repositoryId, branch) =>
 
         return Promise.props(promises)
           .then(result => resolve({
-            rules: result.rules,
-            databases: result.databases,
-            pages: result.pages
+            rules: unifyScripts(result.rules),
+            databases: unifyDatabases(result.databases),
+            pages: unifyScripts(result.pages)
           }));
       })
       .catch(e => reject(e));

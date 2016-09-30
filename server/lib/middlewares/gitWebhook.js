@@ -1,4 +1,4 @@
-import { ArgumentError, UnauthorizedError } from '../errors';
+import { ArgumentError, UnauthorizedError } from 'auth0-extension-tools';
 
 const parse = ({ notificationId = '', resource = {}, eventType = '' }) => {
   const refParts = resource.refUpdates[0].name.split('/');

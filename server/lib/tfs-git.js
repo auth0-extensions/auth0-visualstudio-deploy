@@ -318,7 +318,7 @@ const getPages = (repositoryId, branch, files) => {
     const ext = path.parse(file.path).ext;
     pages[pageName] = pages[pageName] || {};
 
-    if (ext !== 'json') {
+    if (ext !== '.json') {
       pages[pageName].file = file;
       pages[pageName].sha = file.sha;
       pages[pageName].path = file.path;

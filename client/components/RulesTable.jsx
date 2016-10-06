@@ -1,51 +1,56 @@
 import React, { Component } from 'react';
 import {
   Table,
-  TableAction,
-  TableCell,
   TableBody,
-  TableIconCell,
   TableTextCell,
   TableHeader,
   TableColumn,
-  TableRow
+  TableRow,
+  Alert
 } from './Dashboard';
-import Alert from 'react-s-alert';
-import 'react-s-alert/dist/s-alert-default.css';
-import 'react-s-alert/dist/s-alert-css-effects/slide.css';
 
 export default class RulesTable extends Component {
   static propTypes = {
     rules: React.PropTypes.array.isRequired,
     loading: React.PropTypes.bool.isRequired,
-    saveManualRules: React.PropTypes.func.isRequired
+    saveManualRules: React.PropTypes.func.isRequired,
+    openNotification: React.PropTypes.func.isRequired,
+    closeNotification: React.PropTypes.func.isRequired,
+    showNotification: React.PropTypes.bool.isRequired,
+    notificationType: React.PropTypes.string.isRequired,
   }
 
   shouldComponentUpdate(nextProps) {
-    return nextProps.rules !== this.props.rules;
+    return nextProps.rules !== this.props.rules || this.props.showNotification!==nextProps.showNotification;
   }
 
   onChangeManual = (e) => {
-    let elements = document.getElementsByClassName("isManualRule");
+    const rules = this.props.rules;
     let manualRules = [];
-    for ( var i = 0, length = elements.length; i < length; i++ ) {
-      if (elements[i].checked) {
-        manualRules.push(elements[i].value);
+    rules.map((isManual, index) => {
+      if (this.refs[index].checked) {
+        manualRules.push(this.refs[index].value);
       }
-    }
-    this.props.saveManualRules({ names: manualRules }).then(() => {
-      Alert.info('Manual rules were updated.', {
-        effect: 'slide',
-        limit: 1
-      });
     });
+    if (manualRules.length > 0)
+      this.props.saveManualRules({ names: manualRules }).then(() => {
+        this.props.openNotification();
+        setTimeout(()=>{
+          this.props.closeNotification();
+        },10000);
+      });
   }
 
   render() {
     const { rules } = this.props;
     return (
       <div>
-        <Alert stack={{ limit: 3 }} position='top' />
+        <Alert show={this.props.showNotification}
+               onClose={this.props.closeNotification}
+               type={this.props.notificationType}
+        >
+          Manual rules were updated.
+        </Alert>
         <Table>
           <TableHeader>
             <TableColumn width="80%">Name</TableColumn>
@@ -67,7 +72,7 @@ export default class RulesTable extends Component {
             })}
           </TableBody>
         </Table>
-        <button className="btn btn-success pull-right" onClick={this.onChangeManual.bind(this)}>Update Manual Rules
+        <button className="btn btn-success pull-right" onClick={this.onChangeManual}>Update Manual Rules
         </button>
       </div>
     );

@@ -6,6 +6,7 @@ import { Error } from '../components/Dashboard';
 
 import Help from '../components/Help';
 import WebhookSettings from '../components/WebhookSettings';
+import NotificationDialog from '../components/NotificationDialog';
 
 export default connectContainer(class extends Component {
   static stateToProps = (state) => ({
@@ -29,12 +30,15 @@ export default connectContainer(class extends Component {
   }
 
   render() {
-    const { error, record } = this.props.config.toJS();
+    const { error, record, showNotification } = this.props.config.toJS();
 
     return (
       <div>
-        <NotificationDialog show={showNotification} onClose={this.props.closeNotification}
-                            onConfirm={this.props.confirmNotification} />
+        <NotificationDialog
+          show={showNotification}
+          onClose={this.props.closeNotification}
+          onConfirm={this.props.confirmNotification}
+        />
         <div className="row">
           <div className="col-xs-12">
             <Error message={error} />

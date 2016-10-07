@@ -24,30 +24,32 @@ export default class RulesTable extends Component {
     return nextProps.rules !== this.props.rules || this.props.showNotification!==nextProps.showNotification;
   }
 
-  onChangeManual = (e) => {
+  onChangeManual = () => {
     const rules = this.props.rules;
-    let manualRules = [];
+    const manualRules = [];
     rules.map((isManual, index) => {
       if (this.refs[index].checked) {
         manualRules.push(this.refs[index].value);
       }
     });
-    if (manualRules.length > 0)
+    if (manualRules.length > 0) {
       this.props.saveManualRules({ names: manualRules }).then(() => {
         this.props.openNotification();
-        setTimeout(()=>{
+        setTimeout(() => {
           this.props.closeNotification();
-        },10000);
+        }, 10000);
       });
+    }
   }
 
   render() {
     const { rules } = this.props;
     return (
       <div>
-        <Alert show={this.props.showNotification}
-               onClose={this.props.closeNotification}
-               type={this.props.notificationType}
+        <Alert
+          show={this.props.showNotification}
+          onClose={this.props.closeNotification}
+          type={this.props.notificationType}
         >
           Manual rules were updated.
         </Alert>
@@ -63,8 +65,14 @@ export default class RulesTable extends Component {
                   <TableTextCell>{index}</TableTextCell>
                   <TableTextCell>
                     <div className="switch-animate">
-                      <input className="uiswitch isManualRule" value={index} defaultChecked={isManual} type="checkbox"
-                             name="iSManualRule" ref={index} />
+                      <input
+                        className="uiswitch isManualRule"
+                        value={index}
+                        defaultChecked={isManual}
+                        type="checkbox"
+                        name="iSManualRule"
+                        ref={index}
+                      />
                     </div>
                   </TableTextCell>
                 </TableRow>

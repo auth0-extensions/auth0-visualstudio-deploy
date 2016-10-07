@@ -18,7 +18,10 @@ export default connectContainer(class extends Component {
 
   static propTypes = {
     config: PropTypes.object.isRequired,
-    fetchConfiguration: PropTypes.func.isRequired
+    fetchConfiguration: PropTypes.func.isRequired,
+    showNotification: PropTypes.bool,
+    closeNotification: PropTypes.func.isRequired,
+    confirmNotification: PropTypes.func.isRequired
   }
 
   componentWillMount() {
@@ -30,6 +33,8 @@ export default connectContainer(class extends Component {
 
     return (
       <div>
+        <NotificationDialog show={showNotification} onClose={this.props.closeNotification}
+                            onConfirm={this.props.confirmNotification} />
         <div className="row">
           <div className="col-xs-12">
             <Error message={error} />

@@ -13,27 +13,33 @@ const initialState = {
 
 export const rules = createReducer(fromJS(initialState), { // eslint-disable-line import/prefer-default-export
   [constants.FETCH_RULES_PENDING]: (state) =>
-  state.merge({
-    loading: true,
-    error: null
-  }),
+    state.merge({
+      loading: true,
+      error: null
+    }),
   [constants.FETCH_RULES_REJECTED]: (state, action) =>
-state.merge({
-  loading: false,
-  error: `An error occured while loading the rules: ${action.errorMessage}`
-}),
+    state.merge({
+      loading: false,
+      error: `An error occured while loading the rules: ${action.errorMessage}`
+    }),
   [constants.FETCH_RULES_FULFILLED]: (state, action) =>
-state.merge({
-  loading: false,
-  error: null,
-  records: fromJS(action.payload.data)
-}),
+    state.merge({
+      loading: false,
+      error: null,
+      records: fromJS(action.payload.data)
+    }),
+  [constants.UPDATE_MANUAL_RULES_REJECTED]: (state, action) =>
+    state.merge({
+      loading: false,
+      error: `An error occured while updating the rules: ${action.errorMessage}`
+    }),
   [constants.OPEN_RULE_NOTIFICATION]: (state) =>
-state.merge({
-  showNotification: true
-}),
+    state.merge({
+      error: false,
+      showNotification: true
+    }),
   [constants.CLOSE_RULE_NOTIFICATION]: (state) =>
-state.merge({
-  showNotification: false
-})
+    state.merge({
+      showNotification: false
+    })
 });

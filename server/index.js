@@ -3,9 +3,9 @@ import morgan from 'morgan';
 import Express from 'express';
 import bodyParser from 'body-parser';
 import tools from 'auth0-extension-tools';
-import { middlewares } from 'auth0-extension-express-tools';
+import { middlewares, routes } from 'auth0-extension-express-tools';
 
-import routes from './routes';
+import api from './routes';
 import logger from './lib/logger';
 import config from './lib/config';
 
@@ -23,15 +23,28 @@ module.exports = (configProvider, storageProvider) => {
   app.use(bodyParser.json({
     verify: (req, res, buf, encoding) => {
       if (buf && buf.length) {
-        req.rawBody = buf.toString(encoding || 'utf8');
+        req.rawBody = buf.toString(encoding || 'utf8'); // eslint-disable-line no-param-reassign
       }
     }
   }));
   app.use(bodyParser.urlencoded({ extended: false }));
 
+  // Configure authentication.
+  app.use(routes.dashboardAdmins({
+    secret: config('EXTENSION_SECRET'),
+    audience: 'urn:visualstudio-deploy',
+    rta: config('AUTH0_RTA').replace('https://', ''),
+    domain: config('AUTH0_DOMAIN'),
+    baseUrl: config('PUBLIC_WT_URL'),
+    clientName: 'Visual Studio Deploy Extension',
+    urlPrefix: '/admins',
+    sessionStorageKey: 'visualstudio-deploy:apiToken',
+    scopes: 'read:tenant_settings update:tenant_settings update:clients read:clients read:connections update:connections read:rules create:rules update:rules delete:rules'
+  }));
+
   // Configure routes.
   app.use('/app', Express.static(path.join(__dirname, '../dist')));
-  app.use('/', routes(storage));
+  app.use('/', api(storage));
 
   // Generic error handler.
   app.use(middlewares.errorHandler(logger.error.bind(logger)));

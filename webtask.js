@@ -1,9 +1,26 @@
-const tools = require('auth0-extension-tools');
+const url = require('url');
+const tools = require('auth0-extension-express-tools');
 
 const expressApp = require('./server');
+const config = require('./server/lib/config');
 const logger = require('./server/lib/logger');
+const webtask = require('./server/lib/webtask');
 
-module.exports = tools.createExpressServer((req, config, storage) => {
-  logger.info('Starting Visual Studio Team Services Deploy extension - Version:', config('CLIENT_VERSION'));
-  return expressApp(config, storage);
+tools.urlHelpers.getBaseUrl = (req) => {
+  const originalUrl = url.parse(req.originalUrl || '').pathname || '';
+  return url.format({
+    protocol: 'https',
+    host: req.headers.host,
+    pathname: originalUrl.replace(req.path, '').replace(/\/$/g, '')
+  });
+};
+
+const createServer = tools.createServer((cfg, storage) => {
+  logger.info('Starting Visual Studio Team Services Deploy Extension - Version:', process.env.CLIENT_VERSION);
+  return expressApp(cfg, storage);
 });
+
+module.exports = (context, req, res) => {
+  config.setValue('PUBLIC_WT_URL', webtask.getUrl(req));
+  createServer(context, req, res);
+};

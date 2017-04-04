@@ -27,6 +27,12 @@ export default (storage) => {
     }
   }));
 
+  api.use(middlewares.managementApiClient({
+    domain: config('AUTH0_DOMAIN'),
+    clientId: config('AUTH0_CLIENT_ID'),
+    clientSecret: config('AUTH0_CLIENT_SECRET')
+  }));
+
   api.use('/rules', rules(storage));
 
   api.post('/notified', (req, res, next) => {

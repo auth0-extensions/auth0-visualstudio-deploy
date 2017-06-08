@@ -20,7 +20,7 @@ export default (storage) => {
   }));
 
   webhooks.post(gitRoute, gitWebhook(tfsSecret), (req, res) => {
-    const { id, repository_id, branch, commits, repository, user, sha } = req.webhook;
+    const { id, repositoryId, branch, pushId, repository, user, sha } = req.webhook;
 
     // Only accept push requests.
     if (req.webhook.event !== 'git.push') {
@@ -28,7 +28,7 @@ export default (storage) => {
     }
 
     // Only run if there really are changes.
-    return hasGitChanges(commits, repository_id).then(changes => {
+    return hasGitChanges(pushId, repositoryId).then(changes => {
       if (!changes) {
         return res.status(202).json({ message: 'Request ignored, none of the Rules or Database Connection scripts were changed.' });
       }
@@ -37,7 +37,7 @@ export default (storage) => {
       res.status(202).json({ message: 'Request accepted, deployment started.' });
 
       // Deploy the changes.
-      return deploy(storage, id, repository_id, branch, repository, sha, user, req.auth0);
+      return deploy(storage, id, repositoryId, branch, repository, sha, user, req.auth0);
     });
   });
 

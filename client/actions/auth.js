@@ -4,7 +4,7 @@ import { isTokenExpired, decodeToken } from '../utils/auth';
 
 export function logout() {
   return (dispatch) => {
-    sessionStorage.removeItem('github-deploy:apiToken');
+    sessionStorage.removeItem('visualstudio-deploy:apiToken');
     window.location.href = `${window.config.BASE_URL}/admins/logout`;
 
     dispatch({

@@ -5,7 +5,7 @@ import { isTokenExpired, decodeToken } from '../utils/auth';
 export function logout() {
   return (dispatch) => {
     sessionStorage.removeItem('visualstudio-deploy:apiToken');
-    window.location.href = `${window.config.BASE_URL}/admins/logout`;
+    window.location.href = window.config.AUTH0_MANAGE_URL;
 
     dispatch({
       type: constants.LOGOUT_SUCCESS

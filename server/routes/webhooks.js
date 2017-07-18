@@ -20,15 +20,17 @@ export default (storage) => {
   }));
 
   webhooks.post(gitRoute, gitWebhook(tfsSecret), (req, res) => {
-    const { id, repositoryId, branch, pushId, repository, user, sha } = req.webhook;
+    const { id, repositoryId, branch, pushId, pullRequestId, repository, user, sha } = req.webhook;
+    const eventId = pushId || pullRequestId;
+    const isPullRequest = req.webhook.event !== 'git.pullrequest.merged';
+    const isPush = req.webhook.event !== 'git.push';
 
-    // Only accept push requests.
-    if (req.webhook.event !== 'git.push') {
+    if (isPullRequest || isPush) {
       return res.status(202).json({ message: `Request ignored, the '${req.webhook.event}' event is not supported.` });
     }
 
     // Only run if there really are changes.
-    return hasGitChanges(pushId, repositoryId).then(changes => {
+    return hasGitChanges(eventId, repositoryId, isPullRequest).then(changes => {
       if (!changes) {
         return res.status(202).json({ message: 'Request ignored, none of the Rules or Database Connection scripts were changed.' });
       }

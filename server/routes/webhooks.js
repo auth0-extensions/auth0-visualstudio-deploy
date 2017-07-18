@@ -20,7 +20,7 @@ export default (storage) => {
   }));
 
   webhooks.post(gitRoute, gitWebhook(tfsSecret), (req, res) => {
-    const { id, repositoryId, branch, pushId, repository, user, sha } = req.webhook;
+    const { id, repositoryId, branch, commitId, repository, user, sha } = req.webhook;
 
     // Only accept push requests.
     if (req.webhook.event !== 'git.push') {
@@ -28,7 +28,7 @@ export default (storage) => {
     }
 
     // Only run if there really are changes.
-    return hasGitChanges(pushId, repositoryId).then(changes => {
+    return hasGitChanges(commitId, repositoryId).then(changes => {
       if (!changes) {
         return res.status(202).json({ message: 'Request ignored, none of the Rules or Database Connection scripts were changed.' });
       }

@@ -9,7 +9,7 @@ const parse = ({ notificationId = '', resource = {}, eventType = '' }) => {
     repositoryId: resource.repository.id,
     event: eventType,
     branch: refParts.length === 3 ? refParts[2] : '',
-    pushId: resource.pushId,
+    commitId: checkoutSha,
     repository: resource.repository.name,
     user: resource.pushedBy.uniqueName,
     sha: checkoutSha

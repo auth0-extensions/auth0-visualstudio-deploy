@@ -78,26 +78,18 @@ const validFilesOnly = (fileName) => {
 /*
  * Get a flat list of changes and files that need to be added/updated/removed.
  */
-export const hasChanges = (pushId, repoId) =>
+export const hasChanges = (commitId, repoId) =>
   new Promise((resolve, reject) => {
-    // 1. get all commits by pushId
-    // 2. get changes for each commit
-    // 3. get valid files from changes, if any
+    // 1. get changes for commit
+    // 2. get valid files from changes, if any
     try {
-      const promisses = [];
       let files = [];
 
-      getApi().getPushCommits(repoId, pushId)
-        .then(commits => {
-          commits.forEach(commit => {
-            promisses.push(getApi().getChanges(commit.commitId, repoId).then(data => {
-              files = files.concat(data.changes);
-            }));
-          });
-
-          return Promise.all(promisses);
-        })
-        .then(() => resolve(_.chain(files)
+      console.log(commitId, ' ' , repoId);
+      getApi().getChanges(commitId, repoId).then(data => {
+        files = files.concat(data.changes);
+      })
+      .then(() => resolve(_.chain(files)
             .map(file => file.item.path)
             .flattenDeep()
             .uniq()

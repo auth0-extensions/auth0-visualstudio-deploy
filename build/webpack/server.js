@@ -7,6 +7,7 @@ const logger = require('../../server/lib/logger');
 logger.info('Running development webpack server...');
 
 const options = {
+  disableHostCheck: true,
   publicPath: 'http://localhost:3000/app/',
   hot: true,
   inline: true,

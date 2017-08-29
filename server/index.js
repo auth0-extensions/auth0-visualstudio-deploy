@@ -32,7 +32,7 @@ module.exports = (configProvider, storageProvider) => {
 
   // Configure authentication.
   app.get('/login', (req, res) => {
-    res.redirect(join(config('PUBLIC_WT_URL'), '/admins/login'));
+    res.redirect(join(config('WT_URL'), '/admins/login'));
   });
 
   app.use(routes.dashboardAdmins({
@@ -40,7 +40,7 @@ module.exports = (configProvider, storageProvider) => {
     audience: 'urn:visualstudio-deploy',
     rta: config('AUTH0_RTA').replace('https://', ''),
     domain: config('AUTH0_DOMAIN'),
-    baseUrl: config('PUBLIC_WT_URL'),
+    baseUrl: config('WT_URL'),
     clientName: 'Visual Studio Deploy Extension',
     urlPrefix: '/admins',
     sessionStorageKey: 'visualstudio-deploy:apiToken',

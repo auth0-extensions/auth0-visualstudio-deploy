@@ -16,7 +16,7 @@ const parse = ({ notificationId = '', resource = {}, eventType = '' }) => {
   };
 };
 
-module.exports = (secret) => (req, res, next) => {
+export default (secret) => (req, res, next) => {
   if (!secret || secret.length === 0) {
     return next(new UnauthorizedError('The extension secret is not set, unable to verify webhook signature.'));
   }

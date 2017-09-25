@@ -85,7 +85,7 @@ export const hasChanges = (commitId, repoId) =>
     try {
       let files = [];
 
-      getApi().getChanges(commitId, repoId).then(data => {
+      return getApi().getChanges(commitId, repoId).then(data => {
         files = files.concat(data.changes);
       })
       .then(() => resolve(_.chain(files)

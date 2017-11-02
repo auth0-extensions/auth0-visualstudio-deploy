@@ -39,7 +39,7 @@ module.exports = externalModules.then((externals) => {
 
   // Additional dependencies that are available in webtask.
   externals.compatible['vso-node-api'] = true;
-  externals.compatible.auth0 = 'auth0@2.4.0';
+  externals.compatible.auth0 = 'auth0@2.8.0';
   externals.compatible['auth0-oauth2-express'] = 'auth0-oauth2-express@1.1.5';
   externals.compatible.nconf = true;
   externals.compatible['lru-memoizer'] = 'lru-memoizer@1.10.0';

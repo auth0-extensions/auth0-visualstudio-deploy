@@ -345,11 +345,11 @@ auth0-oauth2-express@^1.1.8:
     snyk "^1.19.1"
     superagent "^1.2.0"
 
-auth0-source-control-extension-tools@2.5.1:
-  version "2.5.1"
-  resolved "https://registry.yarnpkg.com/auth0-source-control-extension-tools/-/auth0-source-control-extension-tools-2.5.1.tgz#7822790ae0d243a123a078d8d20473978baff992"
+auth0-source-control-extension-tools@^2.6.2:
+  version "2.6.2"
+  resolved "https://registry.yarnpkg.com/auth0-source-control-extension-tools/-/auth0-source-control-extension-tools-2.6.2.tgz#665e2fd6e9c0c9fcfc8ea115db3fd38990d26a0d"
   dependencies:
-    auth0 "^2.7.0"
+    auth0 "^2.9.0"
     auth0-extension-tools "^0.14.0"
     auth0-oauth2-express "^1.1.8"
     bluebird "^3.4.6"
@@ -367,7 +367,7 @@ auth0@^2.3.1:
     rest-facade "^1.2.7"
     url-join "0.0.1"
 
-auth0@^2.7.0, auth0@^2.8.0:
+auth0@^2.8.0, auth0@^2.9.0:
   version "2.9.1"
   resolved "https://registry.yarnpkg.com/auth0/-/auth0-2.9.1.tgz#85e088035f29925ed086da94d811288a65f5835c"
   dependencies:
@@ -7450,6 +7450,15 @@ typedarray@^0.0.6:
 ua-parser-js@^0.7.9:
   version "0.7.12"
   resolved "https://registry.yarnpkg.com/ua-parser-js/-/ua-parser-js-0.7.12.tgz#04c81a99bdd5dc52263ea29d24c6bf8d4818a4bb"
+
+uglify-js@^2.4.19:
+  version "2.8.29"
+  resolved "https://registry.yarnpkg.com/uglify-js/-/uglify-js-2.8.29.tgz#29c5733148057bb4e1f75df35b7a9cb72e6a59dd"
+  dependencies:
+    source-map "~0.5.1"
+    yargs "~3.10.0"
+  optionalDependencies:
+    uglify-to-browserify "~1.0.0"
 
 uglify-js@^2.6, uglify-js@^2.6.1, uglify-js@~2.7.3:
   version "2.7.5"

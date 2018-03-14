@@ -48,7 +48,7 @@ file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
  * Check if a file is part of configurable folder.
  */
 const isConfigurable = (file, directory) =>
-  file.indexOf(`${directory}/`) === 0;
+  file.indexOf(`${config('TFS_PATH')}/${directory}/`) === 0;
 
 /*
  * Get the details of a database file script.
@@ -101,30 +101,6 @@ export const hasChanges = (changesetId) =>
 
 
 /*
- * Get rules tree.
- */
-// const getRulesTree = (project) =>
-//   new Promise((resolve, reject) => {
-//     try {
-//       getApi().getItems(project, `${config('TFS_PATH')}/${constants.RULES_DIRECTORY}`)
-//         .then(data => {
-//           if (!data) {
-//             return resolve([]);
-//           }
-//
-//           const files = data
-//             .filter(f => f.size)
-//             .filter(f => validFilesOnly(f.path));
-//
-//           return resolve(files);
-//         })
-//         .catch(e => reject(e));
-//     } catch (e) {
-//       reject(e);
-//     }
-//   });
-
-/*
  * Get configurables tree.
  */
 const getConfigurableTree = (project, directory) =>
@@ -147,30 +123,6 @@ const getConfigurableTree = (project, directory) =>
       reject(e);
     }
   });
-
-/*
- * Get pages tree.
- */
-// const getPagesTree = (project) =>
-//   new Promise((resolve, reject) => {
-//     try {
-//       getApi().getItems(project, `${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}`)
-//         .then(data => {
-//           if (!data) {
-//             return resolve([]);
-//           }
-//
-//           const files = data
-//             .filter(f => f.size)
-//             .filter(f => validFilesOnly(f.path));
-//
-//           return resolve(files);
-//         })
-//         .catch(e => reject(e));
-//     } catch (e) {
-//       reject(e);
-//     }
-//   });
 
 /*
  * Get connection files for one db connection
@@ -231,12 +183,12 @@ const getTree = (project, changesetId) =>
   new Promise((resolve, reject) => {
     // Getting separate trees for rules and connections, as tfsvc does not provide full (recursive) tree
     const promises = {
-      rules: getConfigurableTree(project, changesetId, constants.RULES_DIRECTORY),
+      rules: getConfigurableTree(project, constants.RULES_DIRECTORY),
       connections: getConnectionsTree(project, changesetId),
-      pages: getConfigurableTree(project, changesetId, constants.PAGES_DIRECTORY),
-      clients: getConfigurableTree(project, changesetId, constants.CLIENTS_DIRECTORY),
-      ruleConfigs: getConfigurableTree(project, changesetId, constants.RULES_CONFIGS_DIRECTORY),
-      resourceServers: getConfigurableTree(project, changesetId, constants.RESOURCE_SERVERS_DIRECTORY)
+      pages: getConfigurableTree(project, constants.PAGES_DIRECTORY),
+      clients: getConfigurableTree(project, constants.CLIENTS_DIRECTORY),
+      ruleConfigs: getConfigurableTree(project, constants.RULES_CONFIGS_DIRECTORY),
+      resourceServers: getConfigurableTree(project, constants.RESOURCE_SERVERS_DIRECTORY)
     };
 
     Promise.props(promises)
@@ -305,31 +257,20 @@ const downloadRule = (changesetId, ruleName, rule) => {
  */
 const downloadConfigurable = (changesetId, name, item) => {
   const configurable = {
-    script: false,
     metadata: false,
     name
   };
 
   const downloads = [];
 
-  if (item.script) {
-    downloads.push(downloadFile(item.scriptFile, changesetId)
+  if (item.file) {
+    downloads.push(downloadFile(item.file, changesetId)
       .then(file => {
-        configurable.script = true;
-        configurable.scriptFile = file.contents;
+        configurable.configFile = JSON.parse(file.contents);
       }));
   }
 
-  if (item.metadata) {
-    downloads.push(downloadFile(item.metadataFile, changesetId)
-      .then(file => {
-        configurable.metadata = true;
-        configurable.metadataFile = JSON.parse(file.contents);
-      }));
-  }
-
-  return Promise.all(downloads)
-    .then(() => configurable);
+  return Promise.all(downloads).then(() => configurable);
 };
 
 /*
@@ -364,14 +305,11 @@ const getConfigurables = (changesetId, files, directory) => {
 
   _.filter(files, f => isConfigurable(f.path, directory)).forEach(file => {
     const name = path.parse(file.path).name;
+    const ext = path.parse(file.path).ext;
     configurables[name] = configurables[name] || {};
 
-    if (/\.js$/i.test(file.name)) {
-      configurables[name].script = true;
-      configurables[name].scriptFile = file;
-    } else if (/\.json$/i.test(file.name)) {
-      configurables[name].metadata = true;
-      configurables[name].metadataFile = file;
+    if (ext === '.json') {
+      configurables[name].file = file;
     }
   });
 

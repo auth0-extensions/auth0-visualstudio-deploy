@@ -215,31 +215,20 @@ const downloadRule = (repositoryId, branch, ruleName, rule) => {
  */
 const downloadConfigurable = (repositoryId, branch, name, item) => {
   const configurable = {
-    script: false,
     metadata: false,
     name
   };
 
   const downloads = [];
 
-  if (item.script) {
-    downloads.push(downloadFile(repositoryId, branch, item.scriptFile)
+  if (item.file) {
+    downloads.push(downloadFile(repositoryId, branch, item.file)
       .then(file => {
-        configurable.script = true;
-        configurable.scriptFile = file.contents;
+        configurable.configFile = JSON.parse(file.contents);
       }));
   }
 
-  if (item.metadata) {
-    downloads.push(downloadFile(repositoryId, branch, item.metadataFile)
-      .then(file => {
-        configurable.metadata = true;
-        configurable.metadataFile = JSON.parse(file.contents);
-      }));
-  }
-
-  return Promise.all(downloads)
-    .then(() => configurable);
+  return Promise.all(downloads).then(() => configurable);
 };
 
 
@@ -275,14 +264,11 @@ const getConfigurables = (repositoryId, branch, files, directory) => {
 
   _.filter(files, f => isConfigurable(f.path, directory)).forEach(file => {
     const name = path.parse(file.path).name;
+    const ext = path.parse(file.path).ext;
     configurables[name] = configurables[name] || {};
 
-    if (/\.js$/i.test(file.name)) {
-      configurables[name].script = true;
-      configurables[name].scriptFile = file;
-    } else if (/\.json$/i.test(file.name)) {
-      configurables[name].metadata = true;
-      configurables[name].metadataFile = file;
+    if (ext === '.json') {
+      configurables[name].file = file;
     }
   });
 

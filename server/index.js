@@ -44,7 +44,7 @@ module.exports = (configProvider, storageProvider) => {
     clientName: 'Visual Studio Deploy Extension',
     urlPrefix: '/admins',
     sessionStorageKey: 'visualstudio-deploy:apiToken',
-    scopes: 'read:tenant_settings update:tenant_settings update:clients read:clients read:connections update:connections read:rules create:rules update:rules delete:rules'
+    scopes: 'read:tenant_settings update:tenant_settings create:clients read:clients update:clients read:connections update:connections read:rules create:rules update:rules delete:rules delete:clients read:resource_servers create:resource_servers update:resource_servers read:rules_configs delete:rules_configs update:rules_configs'
   }));
 
   // Configure routes.

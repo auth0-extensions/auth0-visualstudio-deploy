@@ -263,10 +263,18 @@ const downloadConfigurable = (changesetId, name, item) => {
 
   const downloads = [];
 
-  if (item.file) {
-    downloads.push(downloadFile(item.file, changesetId)
+  if (item.configFile) {
+    downloads.push(downloadFile(item.configFile, changesetId)
       .then(file => {
         configurable.configFile = JSON.parse(file.contents);
+      }));
+  }
+
+  if (item.metadataFile) {
+    downloads.push(downloadFile(item.metadataFile, changesetId)
+      .then(file => {
+        configurable.metadata = true;
+        configurable.metadataFile = JSON.parse(file.contents);
       }));
   }
 
@@ -304,12 +312,24 @@ const getConfigurables = (changesetId, files, directory) => {
   const configurables = {};
 
   _.filter(files, f => isConfigurable(f.path, directory)).forEach(file => {
-    const name = path.parse(file.path).name;
+    let meta = false;
+    let name = path.parse(file.path).name;
     const ext = path.parse(file.path).ext;
-    configurables[name] = configurables[name] || {};
 
     if (ext === '.json') {
-      configurables[name].file = file;
+      if (name.endsWith('.meta')) {
+        name = path.parse(name).name;
+        meta = true;
+      }
+
+      /* Initialize object if needed */
+      configurables[name] = configurables[name] || {};
+
+      if (meta) {
+        configurables[name].metadataFile = file;
+      } else {
+        configurables[name].configFile = file;
+      }
     }
   });
 

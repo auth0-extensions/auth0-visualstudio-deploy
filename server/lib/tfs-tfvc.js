@@ -45,6 +45,12 @@ file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
 && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
+ * Check if a file is part of configurable folder.
+ */
+const isConfigurable = (file, directory) =>
+  file.indexOf(`${config('TFS_PATH')}/${directory}/`) === 0;
+
+/*
  * Get the details of a database file script.
  */
 const getDatabaseScriptDetails = (filename) => {
@@ -68,13 +74,15 @@ const getDatabaseScriptDetails = (filename) => {
 const validFilesOnly = (fileName) => {
   if (isPage(fileName)) {
     return true;
-  } else if (isRule(fileName)) {
-    return /\.(js|json)$/i.test(fileName);
   } else if (isDatabaseConnection(fileName)) {
     const script = getDatabaseScriptDetails(fileName);
     return !!script;
+  } else if (isRule(fileName)
+    || isConfigurable(fileName, constants.CLIENTS_DIRECTORY)
+    || isConfigurable(fileName, constants.RESOURCE_SERVERS_DIRECTORY)
+    || isConfigurable(fileName, constants.RULES_CONFIGS_DIRECTORY)) {
+    return /\.(js|json)$/i.test(fileName);
   }
-
   return false;
 };
 
@@ -93,36 +101,12 @@ export const hasChanges = (changesetId) =>
 
 
 /*
- * Get rules tree.
+ * Get configurables tree.
  */
-const getRulesTree = (project) =>
+const getConfigurableTree = (project, directory) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, `${config('TFS_PATH')}/${constants.RULES_DIRECTORY}`)
-        .then(data => {
-          if (!data) {
-            return resolve([]);
-          }
-
-          const files = data
-            .filter(f => f.size)
-            .filter(f => validFilesOnly(f.path));
-
-          return resolve(files);
-        })
-        .catch(e => reject(e));
-    } catch (e) {
-      reject(e);
-    }
-  });
-
-/*
- * Get pages tree.
- */
-const getPagesTree = (project) =>
-  new Promise((resolve, reject) => {
-    try {
-      getApi().getItems(project, `${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}`)
+      getApi().getItems(project, `${config('TFS_PATH')}/${directory}`)
         .then(data => {
           if (!data) {
             return resolve([]);
@@ -199,13 +183,16 @@ const getTree = (project, changesetId) =>
   new Promise((resolve, reject) => {
     // Getting separate trees for rules and connections, as tfsvc does not provide full (recursive) tree
     const promises = {
-      rules: getRulesTree(project, changesetId),
+      rules: getConfigurableTree(project, constants.RULES_DIRECTORY),
       connections: getConnectionsTree(project, changesetId),
-      pages: getPagesTree(project, changesetId)
+      pages: getConfigurableTree(project, constants.PAGES_DIRECTORY),
+      clients: getConfigurableTree(project, constants.CLIENTS_DIRECTORY),
+      ruleConfigs: getConfigurableTree(project, constants.RULES_CONFIGS_DIRECTORY),
+      resourceServers: getConfigurableTree(project, constants.RESOURCE_SERVERS_DIRECTORY)
     };
 
     Promise.props(promises)
-      .then(result => resolve(_.union(result.rules, result.connections, result.pages)))
+      .then(result => resolve(_.union(result.rules, result.connections, result.pages, result.clients, result.ruleConfigs, result.resourceServers)))
       .catch(e => reject(e));
   });
 
@@ -266,6 +253,35 @@ const downloadRule = (changesetId, ruleName, rule) => {
 };
 
 /*
+ * Download a single configurable file.
+ */
+const downloadConfigurable = (changesetId, name, item) => {
+  const configurable = {
+    metadata: false,
+    name
+  };
+
+  const downloads = [];
+
+  if (item.configFile) {
+    downloads.push(downloadFile(item.configFile, changesetId)
+      .then(file => {
+        configurable.configFile = JSON.parse(file.contents);
+      }));
+  }
+
+  if (item.metadataFile) {
+    downloads.push(downloadFile(item.metadataFile, changesetId)
+      .then(file => {
+        configurable.metadata = true;
+        configurable.metadataFile = JSON.parse(file.contents);
+      }));
+  }
+
+  return Promise.all(downloads).then(() => configurable);
+};
+
+/*
  * Determine if we have the script, the metadata or both.
  */
 const getRules = (changesetId, files) => {
@@ -287,6 +303,38 @@ const getRules = (changesetId, files) => {
 
   // Download all rules.
   return Promise.map(Object.keys(rules), ruleName => downloadRule(changesetId, ruleName, rules[ruleName]), { concurrency: 2 });
+};
+
+/*
+ * Determine if we have the script, the metadata or both.
+ */
+const getConfigurables = (changesetId, files, directory) => {
+  const configurables = {};
+
+  _.filter(files, f => isConfigurable(f.path, directory)).forEach(file => {
+    let meta = false;
+    let name = path.parse(file.path).name;
+    const ext = path.parse(file.path).ext;
+
+    if (ext === '.json') {
+      if (name.endsWith('.meta')) {
+        name = path.parse(name).name;
+        meta = true;
+      }
+
+      /* Initialize object if needed */
+      configurables[name] = configurables[name] || {};
+
+      if (meta) {
+        configurables[name].metadataFile = file;
+      } else {
+        configurables[name].configFile = file;
+      }
+    }
+  });
+
+  // Download all rules.
+  return Promise.map(Object.keys(configurables), key => downloadConfigurable(changesetId, key, configurables[key]), { concurrency: 2 });
 };
 
 /*
@@ -407,7 +455,10 @@ export const getChanges = (project, changesetId) =>
         const promises = {
           rules: getRules(changesetId, files),
           databases: getDatabaseScripts(changesetId, files),
-          pages: getPages(changesetId, files)
+          pages: getPages(changesetId, files),
+          clients: getConfigurables(changesetId, files, constants.CLIENTS_DIRECTORY),
+          ruleConfigs: getConfigurables(changesetId, files, constants.RULES_CONFIGS_DIRECTORY),
+          resourceServers: getConfigurables(changesetId, files, constants.RESOURCE_SERVERS_DIRECTORY)
         };
 
         Promise.props(promises)
@@ -415,7 +466,10 @@ export const getChanges = (project, changesetId) =>
             resolve({
               rules: unifyScripts(result.rules),
               databases: unifyDatabases(result.databases),
-              pages: unifyScripts(result.pages)
+              pages: unifyScripts(result.pages),
+              clients: unifyScripts(result.clients),
+              ruleConfigs: unifyScripts(result.ruleConfigs),
+              resourceServers: unifyScripts(result.resourceServers)
             }));
       })
       .catch(e => reject(e));

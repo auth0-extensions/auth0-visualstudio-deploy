@@ -42,6 +42,12 @@ const isPage = (file) =>
 file.indexOf(`${constants.PAGES_DIRECTORY}/`) === 0 && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
+ * Check if a file is part of configurable folder.
+ */
+const isConfigurable = (file, directory) =>
+  file.indexOf(`${directory}/`) === 0;
+
+/*
  * Get the details of a database file script.
  */
 const getDatabaseScriptDetails = (filename) => {
@@ -65,13 +71,15 @@ const getDatabaseScriptDetails = (filename) => {
 const validFilesOnly = (fileName) => {
   if (isPage(fileName)) {
     return true;
-  } else if (isRule(fileName)) {
-    return /\.(js|json)$/i.test(fileName);
   } else if (isDatabaseConnection(fileName)) {
     const script = getDatabaseScriptDetails(fileName);
     return !!script;
+  } else if (isRule(fileName)
+    || isConfigurable(fileName, constants.CLIENTS_DIRECTORY)
+    || isConfigurable(fileName, constants.RESOURCE_SERVERS_DIRECTORY)
+    || isConfigurable(fileName, constants.RULES_CONFIGS_DIRECTORY)) {
+    return /\.(js|json)$/i.test(fileName);
   }
-
   return false;
 };
 
@@ -85,7 +93,7 @@ export const hasChanges = (commitId, repoId) =>
     try {
       let files = [];
 
-      getApi().getChanges(commitId, repoId).then(data => {
+      return getApi().getChanges(commitId, repoId).then(data => {
         files = files.concat(data.changes);
       })
       .then(() => resolve(_.chain(files)
@@ -203,6 +211,36 @@ const downloadRule = (repositoryId, branch, ruleName, rule) => {
 };
 
 /*
+ * Download a single configurable file.
+ */
+const downloadConfigurable = (repositoryId, branch, name, item) => {
+  const configurable = {
+    metadata: false,
+    name
+  };
+
+  const downloads = [];
+
+  if (item.configFile) {
+    downloads.push(downloadFile(repositoryId, branch, item.configFile)
+      .then(file => {
+        configurable.configFile = JSON.parse(file.contents);
+      }));
+  }
+
+  if (item.metadataFile) {
+    downloads.push(downloadFile(repositoryId, branch, item.metadataFile)
+      .then(file => {
+        configurable.metadata = true;
+        configurable.metadataFile = JSON.parse(file.contents);
+      }));
+  }
+
+  return Promise.all(downloads).then(() => configurable);
+};
+
+
+/*
  * Determine if we have the script, the metadata or both.
  */
 const getRules = (repositoryId, branch, files) => {
@@ -224,6 +262,39 @@ const getRules = (repositoryId, branch, files) => {
 
   // Download all rules.
   return Promise.map(Object.keys(rules), (ruleName) => downloadRule(repositoryId, branch, ruleName, rules[ruleName]), { concurrency: 2 });
+};
+
+/*
+ * Determine if we have the script, the metadata or both.
+ */
+const getConfigurables = (repositoryId, branch, files, directory) => {
+  const configurables = {};
+
+  _.filter(files, f => isConfigurable(f.path, directory)).forEach(file => {
+    let meta = false;
+    let name = path.parse(file.path).name;
+    const ext = path.parse(file.path).ext;
+
+    if (ext === '.json') {
+      if (name.endsWith('.meta')) {
+        name = path.parse(name).name;
+        meta = true;
+      }
+
+      /* Initialize object if needed */
+      configurables[name] = configurables[name] || {};
+
+      if (meta) {
+        configurables[name].metadataFile = file;
+      } else {
+        configurables[name].configFile = file;
+      }
+    }
+  });
+
+  // Download all rules.
+  return Promise.map(Object.keys(configurables), (key) =>
+    downloadConfigurable(repositoryId, branch, key, configurables[key]), { concurrency: 2 });
 };
 
 /*
@@ -343,14 +414,20 @@ export const getChanges = (repositoryId, branch) =>
         const promises = {
           rules: getRules(repositoryId, branch, files),
           databases: getDatabaseScripts(repositoryId, branch, files),
-          pages: getPages(repositoryId, branch, files)
+          pages: getPages(repositoryId, branch, files),
+          clients: getConfigurables(repositoryId, branch, files, constants.CLIENTS_DIRECTORY),
+          ruleConfigs: getConfigurables(repositoryId, branch, files, constants.RULES_CONFIGS_DIRECTORY),
+          resourceServers: getConfigurables(repositoryId, branch, files, constants.RESOURCE_SERVERS_DIRECTORY)
         };
 
         return Promise.props(promises)
           .then(result => resolve({
             rules: unifyScripts(result.rules),
             databases: unifyDatabases(result.databases),
-            pages: unifyScripts(result.pages)
+            pages: unifyScripts(result.pages),
+            clients: unifyScripts(result.clients),
+            ruleConfigs: unifyScripts(result.ruleConfigs),
+            resourceServers: unifyScripts(result.resourceServers)
           }));
       })
       .catch(e => reject(e));

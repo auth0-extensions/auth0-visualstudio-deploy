@@ -41,9 +41,10 @@ module.exports = externalModules.then((externals) => {
   externals.compatible['vso-node-api'] = true;
   externals.compatible.auth0 = 'auth0@2.8.0';
   externals.compatible['auth0-oauth2-express'] = 'auth0-oauth2-express@1.1.5';
+  externals.compatible['auth0-extension-express-tools'] = 'auth0-extension-express-tools@1.1.5';
   externals.compatible.nconf = true;
   externals.compatible['lru-memoizer'] = 'lru-memoizer@1.10.0';
-  externals.compatible['auth0-extension-tools'] = 'auth0-extension-tools@1.2.1';
+  externals.compatible['auth0-extension-tools'] = 'auth0-extension-tools@1.3.1';
   externals.compatible['node-uuid'] = true;
   externals.compatible.jade = true;
   externals.compatible.jsonwebtoken = true;
@@ -78,7 +79,8 @@ module.exports = externalModules.then((externals) => {
           loader: 'babel',
           exclude(modulePath) {
             return /node_modules/.test(modulePath) &&
-              !/express-conditional-middleware/.test(modulePath);
+              !/express-conditional-middleware/.test(modulePath) &&
+              !/auth0-source-control-extension-tools/.test(modulePath);
           }
         },
         { test: /\.json$/, loader: 'json' }

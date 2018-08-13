@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
-import vsts from 'vso-node-api';
+import { getBasicHandler, WebApi } from 'vso-node-api';
 import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
 import config from './config';
@@ -15,31 +15,35 @@ let gitApi = null;
 const getApi = () => {
   if (!gitApi) {
     const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-    const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
-    const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
-    gitApi = vsConnection.getQGitApi();
+    const vsCredentials = getBasicHandler(config('TFS_TOKEN'), '');
+    const vsConnection = new WebApi(collectionURL, vsCredentials);
+    return vsConnection.getGitApi()
+      .then((api) => {
+        gitApi = api;
+        return gitApi;
+      });
   }
 
-  return gitApi;
+  return Promise.resolve(gitApi);
 };
 
 /*
  * Check if a file is part of the rules folder.
  */
 const isRule = (file) =>
-file.indexOf(`${constants.RULES_DIRECTORY}/`) === 0;
+  file.indexOf(`${constants.RULES_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the database folder.
  */
 const isDatabaseConnection = (file) =>
-file.indexOf(`${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+  file.indexOf(`${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the pages folder.
  */
 const isPage = (file) =>
-file.indexOf(`${constants.PAGES_DIRECTORY}/`) === 0 && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
+  file.indexOf(`${constants.PAGES_DIRECTORY}/`) === 0 && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
  * Check if a file is part of configurable folder.
@@ -93,16 +97,18 @@ export const hasChanges = (commitId, repoId) =>
     try {
       let files = [];
 
-      return getApi().getChanges(commitId, repoId).then(data => {
-        files = files.concat(data.changes);
-      })
-      .then(() => resolve(_.chain(files)
-            .map(file => file.item.path)
-            .flattenDeep()
-            .uniq()
-            .filter(f => validFilesOnly(f.slice(1)))
-            .value()
-            .length > 0))
+      return getApi()
+        .then(api => api.getChanges(commitId, repoId))
+        .then(data => {
+          files = files.concat(data.changes);
+        })
+        .then(() => resolve(_.chain(files)
+          .map(file => file.item.path)
+          .flattenDeep()
+          .uniq()
+          .filter(f => validFilesOnly(f.slice(1)))
+          .value()
+          .length > 0))
         .catch(e => reject(e));
     } catch (e) {
       return reject(e);
@@ -119,7 +125,8 @@ const getCommitId = (repositoryId, branch) =>
     }
 
     try {
-      return getApi().getBranch(repositoryId, branch)
+      return getApi()
+        .then(api => api.getBranch(repositoryId, branch))
         .then(data => {
           if (!data) {
             logger.error(`Branch '${branch}' not found`);
@@ -140,8 +147,8 @@ const getCommitId = (repositoryId, branch) =>
 const getTree = (repositoryId, branch) =>
   new Promise((resolve, reject) => {
     getCommitId(repositoryId, branch)
-      .then(commitId => getApi().getCommit(commitId, repositoryId))
-      .then(commit => getApi().getTree(repositoryId, commit.treeId, null, null, true))
+      .then(commitId => getApi().then(api => api.getCommit(commitId, repositoryId)))
+      .then(commit => getApi().then(api => api.getTree(repositoryId, commit.treeId, null, null, true)))
       .then(data =>
         resolve(data.treeEntries
           .filter(f => f.gitObjectType === 3)
@@ -156,23 +163,25 @@ const getTree = (repositoryId, branch) =>
 const downloadFile = (repositoryId, branch, file) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getBlobContent(repositoryId, file.id, null, true).then(data => {
-        if (data) {
-          let result = '';
+      getApi()
+        .then(api => api.getBlobContent(repositoryId, file.id, null, true))
+        .then(data => {
+          if (data) {
+            let result = '';
 
-          data.on('data', (chunk) => {
-            result += chunk;
-          });
+            data.on('data', (chunk) => {
+              result += chunk;
+            });
 
-          data.on('end', () => resolve({
-            fileName: file.path,
-            contents: result
-          }));
-        } else {
-          logger.error(`Error downloading '${file.path}'`);
-          reject(new Error(`Error downloading '${file.path}'`));
-        }
-      });
+            data.on('end', () => resolve({
+              fileName: file.path,
+              contents: result
+            }));
+          } else {
+            logger.error(`Error downloading '${file.path}'`);
+            reject(new Error(`Error downloading '${file.path}'`));
+          }
+        });
     } catch (e) {
       reject(e);
     }
@@ -437,7 +446,8 @@ export const getChanges = (repositoryId, branch) =>
  * Get a repository id by name.
  */
 export const getRepositoryId = (name) =>
-  getApi().getRepositories()
+  getApi()
+    .then(api => api.getRepositories())
     .then(repositories => {
       if (!repositories) return null;
 

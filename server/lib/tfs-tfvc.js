@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
-import { getBasicHandler, WebApi } from 'vso-node-api';
+import { getPersonalAccessTokenHandler, getBearerHandler, WebApi } from 'vso-node-api';
+import VsoOAuth2 from 'node-oauth2-vso';
 import request from 'request-promise';
 import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
@@ -14,15 +15,37 @@ import logger from '../lib/logger';
  */
 let tfvcApi = null;
 
+const getCredentials = () =>
+  new Promise((resolve, reject) => {
+    if (config('TFS_AUTH_METHOD') === 'pat') {
+      return resolve(getPersonalAccessTokenHandler(config('TFS_TOKEN')));
+    }
+
+    const vsoOAuth2 = new VsoOAuth2(config('TFS_CLIENT_ID'),
+      config('TFS_CLIENT_SECRET'),
+      '',
+      'https://app.vssps.visualstudio.com/oauth2/authorize',
+      'https://app.vssps.visualstudio.com/oauth2/token');
+    return vsoOAuth2.getOAuthAccessToken('', null, (err, token) => {
+      if (err) {
+        return reject(err);
+      }
+
+      return resolve(getBearerHandler(token));
+    });
+  });
+
 const getApi = () => {
   if (!tfvcApi) {
     const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-    const vsCredentials = getBasicHandler(config('TFS_TOKEN'), '');
-    const vsConnection = new WebApi(collectionURL, vsCredentials);
-    return vsConnection.getTfvcApi()
-      .then((api) => {
-        tfvcApi = api;
-        return tfvcApi;
+    return getCredentials()
+      .then((vsCredentials) => {
+        const vsConnection = new WebApi(collectionURL, vsCredentials);
+        return vsConnection.getTfvcApi()
+          .then((api) => {
+            tfvcApi = api;
+            return tfvcApi;
+          });
       });
   }
 

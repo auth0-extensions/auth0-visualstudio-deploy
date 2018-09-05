@@ -1,8 +1,7 @@
 import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
-import { getPersonalAccessTokenHandler, getBearerHandler, WebApi } from 'vso-node-api';
-import VsoOAuth2 from 'node-oauth2-vso';
+import { getPersonalAccessTokenHandler, getBasicHandler, WebApi } from 'vso-node-api';
 import request from 'request-promise';
 import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
@@ -15,37 +14,18 @@ import logger from '../lib/logger';
  */
 let tfvcApi = null;
 
-const getCredentials = () =>
-  new Promise((resolve, reject) => {
-    if (config('TFS_AUTH_METHOD') === 'pat') {
-      return resolve(getPersonalAccessTokenHandler(config('TFS_TOKEN')));
-    }
-
-    const vsoOAuth2 = new VsoOAuth2(config('TFS_CLIENT_ID'),
-      config('TFS_CLIENT_SECRET'),
-      '',
-      'https://app.vssps.visualstudio.com/oauth2/authorize',
-      'https://app.vssps.visualstudio.com/oauth2/token');
-    return vsoOAuth2.getOAuthAccessToken('', null, (err, token) => {
-      if (err) {
-        return reject(err);
-      }
-
-      return resolve(getBearerHandler(token));
-    });
-  });
-
 const getApi = () => {
   if (!tfvcApi) {
     const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-    return getCredentials()
-      .then((vsCredentials) => {
-        const vsConnection = new WebApi(collectionURL, vsCredentials);
-        return vsConnection.getTfvcApi()
-          .then((api) => {
-            tfvcApi = api;
-            return tfvcApi;
-          });
+    const vsCredentials = config('TFS_AUTH_METHOD') === 'pat' ?
+      getPersonalAccessTokenHandler(config('TFS_TOKEN')) :
+      getBasicHandler(config('TFS_USERNAME'), config('TFS_PASSWORD'));
+
+    const vsConnection = new WebApi(collectionURL, vsCredentials);
+    return vsConnection.getTfvcApi()
+      .then((api) => {
+        tfvcApi = api;
+        return tfvcApi;
       });
   }
 
@@ -236,7 +216,8 @@ const getTree = (project, changesetId) =>
 const downloadFile = (file, changesetId) => {
   const version = parseInt(changesetId, 10) || null;
   const versionString = (version) ? `&version=${version}` : '';
-  const auth = new Buffer(`${config('TFS_USERNAME')}:${config('TFS_TOKEN')}`).toString('base64');
+  const secret = config('TFS_AUTH_METHOD') === 'pat' ? config('TFS_TOKEN') : config('TFS_BASIC_PASSWORD');
+  const auth = new Buffer(`${config('TFS_USERNAME')}:${secret}`).toString('base64');
 
   const options = {
     headers: {

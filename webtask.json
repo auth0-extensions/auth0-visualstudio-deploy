@@ -73,7 +73,7 @@
       "required": true
     },
     "TFS_AUTH_METHOD": {
-      "description": "You can choose between PAT and OAuth",
+      "description": "You can choose between PAT and Basic (Alternate authentication credentials)",
       "required": true,
       "type": "select",
       "default": "pat",
@@ -84,24 +84,17 @@
           "text": "Personal Access Token"
         },
         {
-          "value": "oauth",
-          "text": "OAuth"
+          "value": "basic",
+          "text": "Basic"
         }
       ]
     },
-    "TFS_CLIENT_ID": {
-      "description": "Your Visual Studio client ID",
-      "required": true,
-      "visibleIf": {
-        "TFS_AUTH_METHOD": "oauth"
-      }
-    },
-    "TFS_CLIENT_SECRET": {
-      "description": "Your Visual Studio client secret",
+    "TFS_PASSWORD": {
+      "description": "Your Visual Studio password (Alternate authentication credentials)",
       "required": true,
       "type": "password",
       "visibleIf": {
-        "TFS_AUTH_METHOD": "oauth"
+        "TFS_AUTH_METHOD": "basic"
       }
     },
     "TFS_TOKEN": {

@@ -2,10 +2,11 @@ import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
 import { getPersonalAccessTokenHandler, getBasicHandler, WebApi } from 'vso-node-api';
-import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
+import { constants } from 'auth0-source-control-extension-tools';
 
+import unifyData from './unifyData';
 import config from './config';
-import logger from '../lib/logger';
+import logger from './logger';
 
 /*
  * TFS API connection
@@ -428,19 +429,12 @@ export const getChanges = (repositoryId, branch) =>
           databases: getDatabaseScripts(repositoryId, branch, files),
           pages: getPages(repositoryId, branch, files),
           clients: getConfigurables(repositoryId, branch, files, constants.CLIENTS_DIRECTORY),
-          ruleConfigs: getConfigurables(repositoryId, branch, files, constants.RULES_CONFIGS_DIRECTORY),
+          rulesConfigs: getConfigurables(repositoryId, branch, files, constants.RULES_CONFIGS_DIRECTORY),
           resourceServers: getConfigurables(repositoryId, branch, files, constants.RESOURCE_SERVERS_DIRECTORY)
         };
 
         return Promise.props(promises)
-          .then(result => resolve({
-            rules: unifyScripts(result.rules),
-            databases: unifyDatabases(result.databases),
-            pages: unifyScripts(result.pages),
-            clients: unifyScripts(result.clients),
-            ruleConfigs: unifyScripts(result.ruleConfigs),
-            resourceServers: unifyScripts(result.resourceServers)
-          }));
+          .then((result) => resolve(unifyData(result)));
       })
       .catch(e => reject(e));
   });

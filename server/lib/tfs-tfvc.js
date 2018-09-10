@@ -3,10 +3,11 @@ import path from 'path';
 import Promise from 'bluebird';
 import { getPersonalAccessTokenHandler, getBasicHandler, WebApi } from 'vso-node-api';
 import request from 'request-promise';
-import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
+import { constants } from 'auth0-source-control-extension-tools';
 
+import unifyData from './unifyData';
 import config from './config';
-import logger from '../lib/logger';
+import logger from './logger';
 
 
 /*
@@ -201,12 +202,12 @@ const getTree = (project, changesetId) =>
       connections: getConnectionsTree(project, changesetId),
       pages: getConfigurableTree(project, constants.PAGES_DIRECTORY),
       clients: getConfigurableTree(project, constants.CLIENTS_DIRECTORY),
-      ruleConfigs: getConfigurableTree(project, constants.RULES_CONFIGS_DIRECTORY),
+      rulesConfigs: getConfigurableTree(project, constants.RULES_CONFIGS_DIRECTORY),
       resourceServers: getConfigurableTree(project, constants.RESOURCE_SERVERS_DIRECTORY)
     };
 
     Promise.props(promises)
-      .then(result => resolve(_.union(result.rules, result.connections, result.pages, result.clients, result.ruleConfigs, result.resourceServers)))
+      .then(result => resolve(_.union(result.rules, result.connections, result.pages, result.clients, result.rulesConfigs, result.resourceServers)))
       .catch(e => reject(e));
   });
 
@@ -472,20 +473,12 @@ export const getChanges = (project, changesetId) =>
           databases: getDatabaseScripts(changesetId, files),
           pages: getPages(changesetId, files),
           clients: getConfigurables(changesetId, files, constants.CLIENTS_DIRECTORY),
-          ruleConfigs: getConfigurables(changesetId, files, constants.RULES_CONFIGS_DIRECTORY),
+          rulesConfigs: getConfigurables(changesetId, files, constants.RULES_CONFIGS_DIRECTORY),
           resourceServers: getConfigurables(changesetId, files, constants.RESOURCE_SERVERS_DIRECTORY)
         };
 
         Promise.props(promises)
-          .then((result) =>
-            resolve({
-              rules: unifyScripts(result.rules),
-              databases: unifyDatabases(result.databases),
-              pages: unifyScripts(result.pages),
-              clients: unifyScripts(result.clients),
-              ruleConfigs: unifyScripts(result.ruleConfigs),
-              resourceServers: unifyScripts(result.resourceServers)
-            }));
+          .then((result) => resolve(unifyData(result)));
       })
       .catch(e => reject(e));
   });

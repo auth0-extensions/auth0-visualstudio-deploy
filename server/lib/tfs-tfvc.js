@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
-import vsts from 'vso-node-api';
+import { getBasicHandler, WebApi } from 'vso-node-api';
 import request from 'request-promise';
 import { constants, unifyDatabases, unifyScripts } from 'auth0-source-control-extension-tools';
 
@@ -17,32 +17,36 @@ let tfvcApi = null;
 const getApi = () => {
   if (!tfvcApi) {
     const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-    const vsCredentials = vsts.getBasicHandler(config('TFS_TOKEN'), '');
-    const vsConnection = new vsts.WebApi(collectionURL, vsCredentials);
-    tfvcApi = vsConnection.getQTfvcApi();
+    const vsCredentials = getBasicHandler(config('TFS_TOKEN'), '');
+    const vsConnection = new WebApi(collectionURL, vsCredentials);
+    return vsConnection.getTfvcApi()
+      .then((api) => {
+        tfvcApi = api;
+        return tfvcApi;
+      });
   }
 
-  return tfvcApi;
+  return Promise.resolve(tfvcApi);
 };
 
 /*
  * Check if a file is part of the rules folder.
  */
 const isRule = (file) =>
-file.indexOf(`${config('TFS_PATH')}/${constants.RULES_DIRECTORY}/`) === 0;
+  file.indexOf(`${config('TFS_PATH')}/${constants.RULES_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the database folder.
  */
 const isDatabaseConnection = (file) =>
-file.indexOf(`${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+  file.indexOf(`${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
 
 /*
  * Check if a file is part of the pages folder.
  */
 const isPage = (file) =>
-file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
-&& constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
+  file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
+  && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
 
 /*
  * Check if a file is part of configurable folder.
@@ -90,14 +94,17 @@ const validFilesOnly = (fileName) => {
  * Get a flat list of changes and files that need to be added/updated/removed.
  */
 export const hasChanges = (changesetId) =>
-  getApi().getChangesetChanges(changesetId).then(data =>
-  _.chain(data)
-    .map(file => file.item.path)
-    .flattenDeep()
-    .uniq()
-    .filter(validFilesOnly)
-    .value()
-    .length > 0);
+  getApi()
+    .then(
+      api => api.getChangesetChanges(changesetId).then(data =>
+        _.chain(data)
+          .map(file => file.item.path)
+          .flattenDeep()
+          .uniq()
+          .filter(validFilesOnly)
+          .value()
+          .length > 0)
+    );
 
 
 /*
@@ -106,7 +113,8 @@ export const hasChanges = (changesetId) =>
 const getConfigurableTree = (project, directory) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, `${config('TFS_PATH')}/${directory}`)
+      getApi()
+        .then(api => api.getItems(project, `${config('TFS_PATH')}/${directory}`))
         .then(data => {
           if (!data) {
             return resolve([]);
@@ -130,17 +138,19 @@ const getConfigurableTree = (project, directory) =>
 const getConnectionTreeByPath = (project, branch, filePath) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, filePath).then(data => {
-        if (!data) {
-          return resolve([]);
-        }
+      getApi()
+        .then(api => api.getItems(project, filePath))
+        .then(data => {
+          if (!data) {
+            return resolve([]);
+          }
 
-        const files = data
-          .filter(f => f.size)
-          .filter(f => validFilesOnly(f.path));
+          const files = data
+            .filter(f => f.size)
+            .filter(f => validFilesOnly(f.path));
 
-        return resolve(files);
-      });
+          return resolve(files);
+        });
     } catch (e) {
       reject(e);
     }
@@ -152,7 +162,8 @@ const getConnectionTreeByPath = (project, branch, filePath) =>
 const getConnectionsTree = (project, branch) =>
   new Promise((resolve, reject) => {
     try {
-      getApi().getItems(project, `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`)
+      getApi()
+        .then(api => api.getItems(project, `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`))
         .then(data => {
           if (!data) {
             return resolve([]);

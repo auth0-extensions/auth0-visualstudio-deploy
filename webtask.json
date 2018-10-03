@@ -72,10 +72,38 @@
       "description": "Your Visual Studio Team Services username",
       "required": true
     },
+    "TFS_AUTH_METHOD": {
+      "description": "You can choose between PAT and Basic (Alternate authentication credentials)",
+      "required": true,
+      "type": "select",
+      "default": "pat",
+      "allowMultiple": false,
+      "options": [
+        {
+          "value": "pat",
+          "text": "Personal Access Token"
+        },
+        {
+          "value": "basic",
+          "text": "Basic"
+        }
+      ]
+    },
+    "TFS_PASSWORD": {
+      "description": "Your Visual Studio password (Alternate authentication credentials)",
+      "required": true,
+      "type": "password",
+      "visibleIf": {
+        "TFS_AUTH_METHOD": "basic"
+      }
+    },
     "TFS_TOKEN": {
       "description": "Your personal access token for Visual Studio Team Services",
       "required": true,
-      "type": "password"
+      "type": "password",
+      "visibleIf": {
+        "TFS_AUTH_METHOD": "pat"
+      }
     },
     "SLACK_INCOMING_WEBHOOK_URL": {
       "example": "https://hooks.slack.com/services/...",

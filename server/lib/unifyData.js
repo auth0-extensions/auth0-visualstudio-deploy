@@ -31,6 +31,29 @@ const unifyItem = (item, type) => {
       return ({ html: item.htmlFile, name: item.name, enabled });
     }
 
+    case 'emailTemplates': {
+      if (item.name === 'provider') return null;
+      let meta = item.metadataFile || {};
+      try {
+        meta = JSON.parse(item.metadataFile);
+      } catch (e) {
+        logger.info(`Cannot parse metadata of ${item.name} ${type}`);
+      }
+
+      return ({ ...meta, body: item.htmlFile });
+    }
+    case 'clientGrants':
+    case 'emailProvider': {
+      let data = item.configFile || {};
+      try {
+        data = JSON.parse(item.configFile);
+      } catch (e) {
+        logger.info(`Cannot parse metadata of ${item.name} ${type}`);
+      }
+
+      return ({ ...data });
+    }
+
     case 'databases': {
       const customScripts = {};
       _.forEach(item.scripts, (script) => { customScripts[script.name] = script.scriptFile; });
@@ -39,6 +62,7 @@ const unifyItem = (item, type) => {
     }
 
     case 'resourceServers':
+    case 'connections':
     case 'clients': {
       let meta = item.metadataFile || {};
       let data = item.configFile || {};
@@ -77,7 +101,14 @@ export default function (assets) {
 
   _.forEach(assets, (data, type) => {
     result[type] = [];
-    _.forEach(data, (item) => result[type].push(unifyItem(item, type)));
+    if (Array.isArray(data)) {
+      _.forEach(data, (item) => {
+        const unified = unifyItem(item, type);
+        if (unified) result[type].push(unified);
+      });
+    } else {
+      result[type] = unifyItem(data, type);
+    }
   });
 
   return result;

@@ -1,97 +1,29 @@
 import _ from 'lodash';
 import path from 'path';
 import Promise from 'bluebird';
-import { getPersonalAccessTokenHandler, getBasicHandler, WebApi } from 'vso-node-api';
 import request from 'request-promise';
 import { constants } from 'auth0-source-control-extension-tools';
 
 import unifyData from './unifyData';
 import config from './config';
 import logger from './logger';
-
+import common from './common';
 
 /*
  * TFS API connection
  */
-let tfvcApi = null;
+let apiInstance = null;
 
 const getApi = () => {
-  if (!tfvcApi) {
-    const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-    const vsCredentials = config('TFS_AUTH_METHOD') === 'pat' ?
-      getPersonalAccessTokenHandler(config('TFS_TOKEN')) :
-      getBasicHandler(config('TFS_USERNAME'), config('TFS_PASSWORD'));
-
-    const vsConnection = new WebApi(collectionURL, vsCredentials);
-    return vsConnection.getTfvcApi()
+  if (!apiInstance) {
+    return common.getApi()
       .then((api) => {
-        tfvcApi = api;
-        return tfvcApi;
+        apiInstance = api;
+        return apiInstance;
       });
   }
 
-  return Promise.resolve(tfvcApi);
-};
-
-/*
- * Check if a file is part of the rules folder.
- */
-const isRule = (file) =>
-  file.indexOf(`${config('TFS_PATH')}/${constants.RULES_DIRECTORY}/`) === 0;
-
-/*
- * Check if a file is part of the database folder.
- */
-const isDatabaseConnection = (file) =>
-  file.indexOf(`${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
-
-/*
- * Check if a file is part of the pages folder.
- */
-const isPage = (file) =>
-  file.indexOf(`${config('TFS_PATH')}/${constants.PAGES_DIRECTORY}/`) === 0
-  && constants.PAGE_NAMES.indexOf(file.split('/').pop()) >= 0;
-
-/*
- * Check if a file is part of configurable folder.
- */
-const isConfigurable = (file, directory) =>
-  file.indexOf(`${config('TFS_PATH')}/${directory}/`) === 0;
-
-/*
- * Get the details of a database file script.
- */
-const getDatabaseScriptDetails = (filename) => {
-  const parts = filename.replace(`${config('TFS_PATH')}/`, '').split('/');
-  if (parts.length === 3 && /\.js$/i.test(parts[2])) {
-    const scriptName = path.parse(parts[2]).name;
-    if (constants.DATABASE_SCRIPTS.indexOf(scriptName) > -1) {
-      return {
-        database: parts[1],
-        name: path.parse(scriptName).name
-      };
-    }
-  }
-
-  return null;
-};
-
-/*
- * Only Javascript and JSON files.
- */
-const validFilesOnly = (fileName) => {
-  if (isPage(fileName)) {
-    return true;
-  } else if (isDatabaseConnection(fileName)) {
-    const script = getDatabaseScriptDetails(fileName);
-    return !!script;
-  } else if (isRule(fileName)
-    || isConfigurable(fileName, constants.CLIENTS_DIRECTORY)
-    || isConfigurable(fileName, constants.RESOURCE_SERVERS_DIRECTORY)
-    || isConfigurable(fileName, constants.RULES_CONFIGS_DIRECTORY)) {
-    return /\.(js|json)$/i.test(fileName);
-  }
-  return false;
+  return Promise.resolve(apiInstance);
 };
 
 /*
@@ -105,7 +37,7 @@ export const hasChanges = (changesetId) =>
           .map(file => file.item.path)
           .flattenDeep()
           .uniq()
-          .filter(validFilesOnly)
+          .filter(common.validFilesOnly)
           .value()
           .length > 0)
     );
@@ -118,7 +50,7 @@ const getConfigurableTree = (project, directory) =>
   new Promise((resolve, reject) => {
     try {
       getApi()
-        .then(api => api.getItems(project, `${config('TFS_PATH')}/${directory}`))
+        .then(api => api.getItems(project, `${common.getPrefix()}/${directory}`))
         .then(data => {
           if (!data) {
             return resolve([]);
@@ -126,7 +58,7 @@ const getConfigurableTree = (project, directory) =>
 
           const files = data
             .filter(f => f.size)
-            .filter(f => validFilesOnly(f.path));
+            .filter(f => common.validFilesOnly(f.path));
 
           return resolve(files);
         })
@@ -151,7 +83,7 @@ const getConnectionTreeByPath = (project, branch, filePath) =>
 
           const files = data
             .filter(f => f.size)
-            .filter(f => validFilesOnly(f.path));
+            .filter(f => common.validFilesOnly(f.path));
 
           return resolve(files);
         });
@@ -167,13 +99,13 @@ const getConnectionsTree = (project, branch) =>
   new Promise((resolve, reject) => {
     try {
       getApi()
-        .then(api => api.getItems(project, `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`))
+        .then(api => api.getItems(project, `${common.getPrefix()}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`))
         .then(data => {
           if (!data) {
             return resolve([]);
           }
 
-          const subdirs = data.filter(f => f.isFolder && f.path !== `${config('TFS_PATH')}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`);
+          const subdirs = data.filter(f => f.isFolder && f.path !== `${common.getPrefix()}/${constants.DATABASE_CONNECTIONS_DIRECTORY}`);
           const promisses = [];
           let files = [];
           subdirs.forEach(subdir => {
@@ -199,15 +131,28 @@ const getTree = (project, changesetId) =>
     // Getting separate trees for rules and connections, as tfsvc does not provide full (recursive) tree
     const promises = {
       rules: getConfigurableTree(project, constants.RULES_DIRECTORY),
-      connections: getConnectionsTree(project, changesetId),
+      databases: getConnectionsTree(project, changesetId),
+      emails: getConfigurableTree(project, constants.EMAIL_TEMPLATES_DIRECTORY),
       pages: getConfigurableTree(project, constants.PAGES_DIRECTORY),
       clients: getConfigurableTree(project, constants.CLIENTS_DIRECTORY),
+      clientGrants: getConfigurableTree(project, constants.CLIENTS_GRANTS_DIRECTORY),
+      connections: getConfigurableTree(project, constants.CONNECTIONS_DIRECTORY),
       rulesConfigs: getConfigurableTree(project, constants.RULES_CONFIGS_DIRECTORY),
       resourceServers: getConfigurableTree(project, constants.RESOURCE_SERVERS_DIRECTORY)
     };
 
-    Promise.props(promises)
-      .then(result => resolve(_.union(result.rules, result.connections, result.pages, result.clients, result.rulesConfigs, result.resourceServers)))
+    return Promise.props(promises)
+      .then(result => resolve(_.union(
+        result.rules,
+        result.databases,
+        result.emails,
+        result.pages,
+        result.clients,
+        result.clientGrants,
+        result.connections,
+        result.rulesConfigs,
+        result.resourceServers
+      )))
       .catch(e => reject(e));
   });
 
@@ -217,8 +162,7 @@ const getTree = (project, changesetId) =>
 const downloadFile = (file, changesetId) => {
   const version = parseInt(changesetId, 10) || null;
   const versionString = (version) ? `&version=${version}` : '';
-  const secret = config('TFS_AUTH_METHOD') === 'pat' ? config('TFS_TOKEN') : config('TFS_BASIC_PASSWORD');
-  const auth = new Buffer(`${config('TFS_USERNAME')}:${secret}`).toString('base64');
+  const auth = new Buffer(`${config('TFS_USERNAME')}:${config('TFS_TOKEN')}`).toString('base64');
 
   const options = {
     headers: {
@@ -304,7 +248,7 @@ const getRules = (changesetId, files) => {
   // Rules object.
   const rules = {};
 
-  _.filter(files, f => isRule(f.path)).forEach(file => {
+  _.filter(files, f => common.isRule(f.path)).forEach(file => {
     const ruleName = path.parse(file.path).name;
     rules[ruleName] = rules[ruleName] || {};
 
@@ -327,7 +271,7 @@ const getRules = (changesetId, files) => {
 const getConfigurables = (changesetId, files, directory) => {
   const configurables = {};
 
-  _.filter(files, f => isConfigurable(f.path, directory)).forEach(file => {
+  _.filter(files, f => common.isConfigurable(f.path, directory)).forEach(file => {
     let meta = false;
     let name = path.parse(file.path).name;
     const ext = path.parse(file.path).ext;
@@ -385,8 +329,8 @@ const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
 const getDatabaseScripts = (changesetId, files) => {
   const databases = {};
 
-  _.filter(files, f => isDatabaseConnection(f.path)).forEach(file => {
-    const script = getDatabaseScriptDetails(file.path);
+  _.filter(files, f => common.isDatabaseConnection(f.path)).forEach(file => {
+    const script = common.getDatabaseScriptDetails(file.path);
     if (script) {
       databases[script.database] = databases[script.database] || [];
       databases[script.database].push({
@@ -401,60 +345,66 @@ const getDatabaseScripts = (changesetId, files) => {
 };
 
 /*
- * Download a single page script.
+ * Download a single page or email script.
  */
-const downloadPage = (changesetId, pageName, page) => {
+const downloadTemplate = (changesetId, tplName, template) => {
   const downloads = [];
-  const currentPage = {
+  const currentTpl = {
     metadata: false,
-    name: pageName
+    name: tplName
   };
 
-  if (page.file) {
-    downloads.push(downloadFile(page.file, changesetId)
+  if (template.file) {
+    downloads.push(downloadFile(template.file, changesetId)
       .then(file => {
-        currentPage.htmlFile = file.contents;
+        currentTpl.htmlFile = file.contents;
       }));
   }
 
 
-  if (page.meta_file) {
-    downloads.push(downloadFile(page.meta_file, changesetId)
+  if (template.meta_file) {
+    downloads.push(downloadFile(template.meta_file, changesetId)
       .then(file => {
-        currentPage.metadata = true;
-        currentPage.metadataFile = file.contents;
+        currentTpl.metadata = true;
+        currentTpl.metadataFile = file.contents;
       }));
   }
 
-  return Promise.all(downloads).then(() => currentPage);
+  return Promise.all(downloads).then(() => currentTpl);
 };
 
 /*
- * Get all pages.
+ * Get all html templates - emails/pages.
  */
-const getPages = (changesetId, files) => {
-  const pages = {};
+const getHtmlTemplates = (changesetId, files, dir, allowedNames) => {
+  const templates = {};
 
   // Determine if we have the script, the metadata or both.
-  _.filter(files, f => isPage(f.path)).forEach(file => {
-    const pageName = path.parse(file.path).name;
+  _.filter(files, f => common.isTemplate(f.path, dir, allowedNames)).forEach(file => {
+    const tplName = path.parse(file.path).name;
     const ext = path.parse(file.path).ext;
-    pages[pageName] = pages[pageName] || {};
+    templates[tplName] = templates[tplName] || {};
 
     if (ext !== '.json') {
-      pages[pageName].file = file;
-      pages[pageName].sha = file.sha;
-      pages[pageName].path = file.path;
+      templates[tplName].file = file;
+      templates[tplName].sha = file.sha;
+      templates[tplName].path = file.path;
     } else {
-      pages[pageName].meta_file = file;
-      pages[pageName].meta_sha = file.sha;
-      pages[pageName].meta_path = file.path;
+      templates[tplName].meta_file = file;
+      templates[tplName].meta_sha = file.sha;
+      templates[tplName].meta_path = file.path;
     }
   });
 
-  return Promise.map(Object.keys(pages), (pageName) =>
-    downloadPage(changesetId, pageName, pages[pageName]), { concurrency: 2 });
+  return Promise.map(Object.keys(templates), (name) =>
+    downloadTemplate(changesetId, name, templates[name]), { concurrency: 2 });
 };
+
+/*
+ * Get email provider.
+ */
+const getEmailProvider = (changesetId, files) =>
+  downloadConfigurable(changesetId, 'emailProvider', { configFile: _.find(files, f => common.isEmailProvider(f.path)) });
 
 /*
  * Get a list of all changes that need to be applied to rules and database scripts.
@@ -471,13 +421,17 @@ export const getChanges = (project, changesetId) =>
         const promises = {
           rules: getRules(changesetId, files),
           databases: getDatabaseScripts(changesetId, files),
-          pages: getPages(changesetId, files),
+          emailProvider: getEmailProvider(changesetId, files),
+          emailTemplates: getHtmlTemplates(changesetId, files, constants.EMAIL_TEMPLATES_DIRECTORY, constants.EMAIL_TEMPLATES_NAMES),
+          pages: getHtmlTemplates(changesetId, files, constants.PAGES_DIRECTORY, constants.PAGE_NAMES),
           clients: getConfigurables(changesetId, files, constants.CLIENTS_DIRECTORY),
+          clientGrants: getConfigurables(changesetId, files, constants.CLIENTS_GRANTS_DIRECTORY),
+          connections: getConfigurables(changesetId, files, constants.CONNECTIONS_DIRECTORY),
           rulesConfigs: getConfigurables(changesetId, files, constants.RULES_CONFIGS_DIRECTORY),
           resourceServers: getConfigurables(changesetId, files, constants.RESOURCE_SERVERS_DIRECTORY)
         };
 
-        Promise.props(promises)
+        return Promise.props(promises)
           .then((result) => resolve(unifyData(result)));
       })
       .catch(e => reject(e));

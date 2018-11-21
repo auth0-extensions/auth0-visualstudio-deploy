@@ -3,6 +3,7 @@ import express from 'express';
 import { middlewares } from 'auth0-extension-express-tools';
 
 import rules from './rules';
+import resourceServers from './resourceServers';
 import deploy from '../lib/deploy';
 import manualDeploy from '../lib/manualDeploy';
 import config from '../lib/config';
@@ -34,6 +35,7 @@ export default (storage) => {
   }));
 
   api.use('/rules', rules(storage));
+  api.use('/resourceServers', resourceServers(storage));
 
   api.post('/notified', (req, res, next) => {
     setNotified(storage)

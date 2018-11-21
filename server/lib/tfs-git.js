@@ -37,7 +37,7 @@ export const hasChanges = (commitId, repoId) =>
       return getApi()
         .then(api => api.getChanges(commitId, repoId))
         .then(data => {
-          files = files.concat(data.changes);
+          files = data ? files.concat(data.changes) : [];
         })
         .then(() => resolve(_.chain(files)
           .map(file => file.item.path)

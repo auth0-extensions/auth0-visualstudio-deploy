@@ -107,7 +107,10 @@
     },
     "BASE_DIR": {
       "example": "settings/tenant",
-      "description": "Path to your tenant settings directories"
+      "description": "Path to your tenant settings directories",
+      "visibleIf": {
+        "TFS_TYPE": "git"
+      }
     },
     "SLACK_INCOMING_WEBHOOK_URL": {
       "example": "https://hooks.slack.com/services/...",

@@ -20,37 +20,37 @@ const getBaseDir = () => {
 };
 
 const getPrefix = () =>
-  (config('TFS_TYPE') === 'git' ? getBaseDir() : getBaseDir() + config('TFS_PATH'));
+  (config('TFS_TYPE') === 'git' ? getBaseDir() : config('TFS_PATH'));
 
 /*
  * Check if a file is part of the rules folder.
  */
 const isRule = (file) =>
-  file.indexOf(`${getPrefix()}${constants.RULES_DIRECTORY}/`) === 0;
+  file.indexOf(`${path.join(getPrefix(), constants.RULES_DIRECTORY)}/`) === 0;
 
 /*
  * Check if a file is part of the database folder.
  */
 const isDatabaseConnection = (file) =>
-  file.indexOf(`${getPrefix()}${constants.DATABASE_CONNECTIONS_DIRECTORY}/`) === 0;
+  file.indexOf(`${path.join(getPrefix(), constants.DATABASE_CONNECTIONS_DIRECTORY)}/`) === 0;
 
 /*
  * Check if a file is part of the templates folder - emails or pages.
  */
 const isTemplate = (file, dir, allowedNames) =>
-  file.indexOf(`${getPrefix()}${dir}/`) === 0 && allowedNames.indexOf(file.split('/').pop()) >= 0;
+  file.indexOf(`${path.join(getPrefix(), dir)}/`) === 0 && allowedNames.indexOf(file.split('/').pop()) >= 0;
 
 /*
  * Check if a file is part of the pages folder.
  */
 const isEmailProvider = (file) =>
-  file === `${getPrefix()}${constants.EMAIL_TEMPLATES_DIRECTORY}/provider.json`;
+  file === path.join(getPrefix(), constants.EMAIL_TEMPLATES_DIRECTORY, 'provider.json');
 
 /*
  * Check if a file is part of configurable folder.
  */
 const isConfigurable = (file, directory) =>
-  file.indexOf(`${getPrefix()}${directory}/`) === 0;
+  file.indexOf(`${path.join(getPrefix(), directory)}/`) === 0;
 
 /*
  * Get the details of a database file script.

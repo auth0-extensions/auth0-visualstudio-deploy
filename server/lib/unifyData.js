@@ -110,6 +110,6 @@ export default function (assets) {
       result[type] = unifyItem(data, type);
     }
   });
-
+console.log(result);
   return result;
 }

@@ -1,5 +1,5 @@
 import path from 'path';
-import { getBasicHandler, WebApi } from 'vso-node-api';
+import { getPersonalAccessTokenHandler, getBasicHandler, WebApi } from 'vso-node-api';
 import { constants } from 'auth0-source-control-extension-tools';
 
 import config from './config';
@@ -7,7 +7,9 @@ import config from './config';
 const getApi = () => {
   const apiType = config('TFS_TYPE') === 'git' ? 'getGitApi' : 'getTfvcApi';
   const collectionURL = `https://${config('TFS_INSTANCE')}.visualstudio.com/${config('TFS_COLLECTION')}`;
-  const vsCredentials = getBasicHandler(config('TFS_TOKEN'), '');
+  const vsCredentials = config('TFS_AUTH_METHOD') === 'pat' ?
+    getPersonalAccessTokenHandler(config('TFS_TOKEN')) :
+    getBasicHandler(config('TFS_USERNAME'), config('TFS_PASSWORD'));
   const vsConnection = new WebApi(collectionURL, vsCredentials);
   return vsConnection[apiType]();
 };

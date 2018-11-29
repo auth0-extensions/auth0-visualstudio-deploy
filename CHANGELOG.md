@@ -6,3 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Custom Webhook` to send deploy reports.
+- `Email Templates`, `Email Provider`, `Resource Servers`, `Client Grants` support. 

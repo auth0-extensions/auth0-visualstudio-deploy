@@ -1,4 +1,5 @@
 # Auth0 TFS Deployments
+[![CircleCI](https://circleci.com/gh/auth0-extensions/auth0-visualstudio-deploy.svg?style=svg)](https://circleci.com/gh/auth0-extensions/auth0-visualstudio-deploy)
 
 This extension makes it possible to deploy Rules and Database Connection scripts from TFS to Auth0.
 

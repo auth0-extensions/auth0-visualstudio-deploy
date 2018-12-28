@@ -55,10 +55,23 @@ const unifyItem = (item, type) => {
     }
 
     case 'databases': {
+      let settings = item.settings || {};
+      try {
+        settings = JSON.parse(item.settings);
+      } catch (e) {
+        logger.info(`Cannot parse settings of ${item.name} ${type}`);
+      }
       const customScripts = {};
+      const options = settings.options || {};
+
       _.forEach(item.scripts, (script) => { customScripts[script.name] = script.scriptFile; });
 
-      return ({ strategy: 'auth0', name: item.name, options: { customScripts, enabledDatabaseCustomization: true } });
+      if (item.scripts || item.scripts.length) {
+        options.customScripts = customScripts;
+        options.enabledDatabaseCustomization = true;
+      }
+
+      return ({ ...settings, options, strategy: 'auth0', name: item.name });
     }
 
     case 'resourceServers':
@@ -110,6 +123,6 @@ export default function (assets) {
       result[type] = unifyItem(data, type);
     }
   });
-console.log(result);
+
   return result;
 }

@@ -257,10 +257,14 @@ const downloadDatabaseScript = (repositoryId, branch, databaseName, scripts) => 
   scripts.forEach(script => {
     downloads.push(downloadFile(repositoryId, branch, script)
       .then(file => {
-        database.scripts.push({
-          name: script.name,
-          scriptFile: file.contents
-        });
+        if (script.name === 'settings') {
+          database.settings = file.contents;
+        } else {
+          database.scripts.push({
+            name: script.name,
+            scriptFile: file.contents
+          });
+        }
       })
     );
   });
@@ -272,15 +276,26 @@ const downloadDatabaseScript = (repositoryId, branch, databaseName, scripts) => 
 /*
  * Get all database scripts.
  */
-const getDatabaseScripts = (repositoryId, branch, files) => {
+const getDatabaseData = (repositoryId, branch, files) => {
   const databases = {};
 
   _.filter(files, f => common.isDatabaseConnection(f.path)).forEach(file => {
     const script = common.getDatabaseScriptDetails(file.path);
+    const settings = common.getDatabaseSettingsDetails(file.path);
+
     if (script) {
       databases[script.database] = databases[script.database] || [];
       databases[script.database].push({
         ...script,
+        id: file.id,
+        path: file.path
+      });
+    }
+
+    if (settings) {
+      databases[settings.database] = databases[settings.database] || [];
+      databases[settings.database].push({
+        ...settings,
         id: file.id,
         path: file.path
       });
@@ -366,7 +381,7 @@ export const getChanges = (repositoryId, branch) =>
 
         const promises = {
           rules: getRules(repositoryId, branch, files),
-          databases: getDatabaseScripts(repositoryId, branch, files),
+          databases: getDatabaseData(repositoryId, branch, files),
           emailProvider: getEmailProvider(repositoryId, branch, files),
           emailTemplates: getHtmlTemplates(repositoryId, branch, files, constants.EMAIL_TEMPLATES_DIRECTORY, constants.EMAIL_TEMPLATES_NAMES),
           pages: getHtmlTemplates(repositoryId, branch, files, constants.PAGES_DIRECTORY, constants.PAGE_NAMES),

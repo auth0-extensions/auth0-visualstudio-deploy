@@ -77,6 +77,22 @@ const getDatabaseScriptDetails = (filename) => {
   return null;
 };
 
+const getDatabaseSettingsDetails = (filename) => {
+  if (config('TFS_TYPE') !== 'git') {
+    filename = filename.replace(`${config('TFS_PATH')}/`, '');
+  }
+
+  const parts = filename.split('/');
+  const length = parts.length;
+  if (length >= 3 && parts[length - 1] === 'settings.json') {
+    return {
+      database: parts[length - 2],
+      name: 'settings'
+    };
+  }
+  return null;
+};
+
 /*
  * Only Javascript and JSON files.
  */
@@ -100,8 +116,9 @@ const validFilesOnly = (fileName) => {
   } else if (isConfigurable(fileName, constants.RULES_CONFIGS_DIRECTORY)) {
     return /\.(js|json)$/i.test(fileName);
   } else if (isDatabaseConnection(fileName)) {
-    const script = getDatabaseScriptDetails(fileName);
-    return !!script;
+    const script = !!getDatabaseScriptDetails(fileName);
+    const settings = !!getDatabaseSettingsDetails(fileName);
+    return script || settings;
   }
 
   return false;
@@ -116,5 +133,6 @@ module.exports = {
   isEmailProvider,
   isConfigurable,
   getDatabaseScriptDetails,
+  getDatabaseSettingsDetails,
   validFilesOnly
 };

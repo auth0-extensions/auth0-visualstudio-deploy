@@ -277,30 +277,7 @@ const downloadDatabaseScript = (repositoryId, branch, databaseName, scripts) => 
  * Get all database scripts.
  */
 const getDatabaseData = (repositoryId, branch, files) => {
-  const databases = {};
-
-  _.filter(files, f => common.isDatabaseConnection(f.path)).forEach(file => {
-    const script = common.getDatabaseScriptDetails(file.path);
-    const settings = common.getDatabaseSettingsDetails(file.path);
-
-    if (script) {
-      databases[script.database] = databases[script.database] || [];
-      databases[script.database].push({
-        ...script,
-        id: file.id,
-        path: file.path
-      });
-    }
-
-    if (settings) {
-      databases[settings.database] = databases[settings.database] || [];
-      databases[settings.database].push({
-        ...settings,
-        id: file.id,
-        path: file.path
-      });
-    }
-  });
+  const databases = common.getDatabaseFiles(files);
 
   return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(repositoryId, branch, databaseName, databases[databaseName]), { concurrency: 2 });
 };

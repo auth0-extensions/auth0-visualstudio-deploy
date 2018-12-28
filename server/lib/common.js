@@ -3,6 +3,7 @@ import { getPersonalAccessTokenHandler, getBasicHandler, WebApi } from 'vso-node
 import { constants } from 'auth0-source-control-extension-tools';
 
 import config from './config';
+import _ from 'lodash';
 
 const getApi = () => {
   const apiType = config('TFS_TYPE') === 'git' ? 'getGitApi' : 'getTfvcApi';
@@ -124,6 +125,35 @@ const validFilesOnly = (fileName) => {
   return false;
 };
 
+const getDatabaseFiles = (files) => {
+  const databases = {};
+
+  _.filter(files, f => isDatabaseConnection(f.path)).forEach(file => {
+    const script = getDatabaseScriptDetails(file.path);
+    const settings = getDatabaseSettingsDetails(file.path);
+
+    if (script) {
+      databases[script.database] = databases[script.database] || [];
+      databases[script.database].push({
+        ...script,
+        id: file.id,
+        path: file.path
+      });
+    }
+
+    if (settings) {
+      databases[settings.database] = databases[settings.database] || [];
+      databases[settings.database].push({
+        ...settings,
+        id: file.id,
+        path: file.path
+      });
+    }
+  });
+
+  return databases;
+};
+
 module.exports = {
   getApi,
   getPrefix,
@@ -132,7 +162,6 @@ module.exports = {
   isTemplate,
   isEmailProvider,
   isConfigurable,
-  getDatabaseScriptDetails,
-  getDatabaseSettingsDetails,
+  getDatabaseFiles,
   validFilesOnly
 };

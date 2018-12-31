@@ -3,6 +3,7 @@ import { getPersonalAccessTokenHandler, getBasicHandler, WebApi } from 'vso-node
 import { constants } from 'auth0-source-control-extension-tools';
 
 import config from './config';
+import _ from 'lodash';
 
 const getApi = () => {
   const apiType = config('TFS_TYPE') === 'git' ? 'getGitApi' : 'getTfvcApi';
@@ -77,6 +78,22 @@ const getDatabaseScriptDetails = (filename) => {
   return null;
 };
 
+const getDatabaseSettingsDetails = (filename) => {
+  if (config('TFS_TYPE') !== 'git') {
+    filename = filename.replace(`${config('TFS_PATH')}/`, '');
+  }
+
+  const parts = filename.split('/');
+  const length = parts.length;
+  if (length >= 3 && parts[length - 1] === 'settings.json') {
+    return {
+      database: parts[length - 2],
+      name: 'settings'
+    };
+  }
+  return null;
+};
+
 /*
  * Only Javascript and JSON files.
  */
@@ -100,11 +117,41 @@ const validFilesOnly = (fileName) => {
   } else if (isConfigurable(fileName, constants.RULES_CONFIGS_DIRECTORY)) {
     return /\.(js|json)$/i.test(fileName);
   } else if (isDatabaseConnection(fileName)) {
-    const script = getDatabaseScriptDetails(fileName);
-    return !!script;
+    const script = !!getDatabaseScriptDetails(fileName);
+    const settings = !!getDatabaseSettingsDetails(fileName);
+    return script || settings;
   }
 
   return false;
+};
+
+const getDatabaseFiles = (files) => {
+  const databases = {};
+
+  _.filter(files, f => isDatabaseConnection(f.path)).forEach(file => {
+    const script = getDatabaseScriptDetails(file.path);
+    const settings = getDatabaseSettingsDetails(file.path);
+
+    if (script) {
+      databases[script.database] = databases[script.database] || [];
+      databases[script.database].push({
+        ...script,
+        id: file.id,
+        path: file.path
+      });
+    }
+
+    if (settings) {
+      databases[settings.database] = databases[settings.database] || [];
+      databases[settings.database].push({
+        ...settings,
+        id: file.id,
+        path: file.path
+      });
+    }
+  });
+
+  return databases;
 };
 
 module.exports = {
@@ -115,6 +162,6 @@ module.exports = {
   isTemplate,
   isEmailProvider,
   isConfigurable,
-  getDatabaseScriptDetails,
+  getDatabaseFiles,
   validFilesOnly
 };

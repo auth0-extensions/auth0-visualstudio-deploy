@@ -311,10 +311,14 @@ const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
   scripts.forEach(script => {
     downloads.push(downloadFile(script, changesetId)
       .then(file => {
-        database.scripts.push({
-          name: script.name,
-          scriptFile: file.contents
-        });
+        if (script.name === 'settings') {
+          database.settings = file.contents;
+        } else {
+          database.scripts.push({
+            name: script.name,
+            scriptFile: file.contents
+          });
+        }
       })
     );
   });
@@ -326,20 +330,8 @@ const downloadDatabaseScript = (changesetId, databaseName, scripts) => {
 /*
  * Get all database scripts.
  */
-const getDatabaseScripts = (changesetId, files) => {
-  const databases = {};
-
-  _.filter(files, f => common.isDatabaseConnection(f.path)).forEach(file => {
-    const script = common.getDatabaseScriptDetails(file.path);
-    if (script) {
-      databases[script.database] = databases[script.database] || [];
-      databases[script.database].push({
-        ...script,
-        id: file.id,
-        path: file.path
-      });
-    }
-  });
+const getDatabaseData = (changesetId, files) => {
+  const databases = common.getDatabaseFiles(files);
 
   return Promise.map(Object.keys(databases), (databaseName) => downloadDatabaseScript(changesetId, databaseName, databases[databaseName]), { concurrency: 2 });
 };
@@ -420,7 +412,7 @@ export const getChanges = (project, changesetId) =>
 
         const promises = {
           rules: getRules(changesetId, files),
-          databases: getDatabaseScripts(changesetId, files),
+          databases: getDatabaseData(changesetId, files),
           emailProvider: getEmailProvider(changesetId, files),
           emailTemplates: getHtmlTemplates(changesetId, files, constants.EMAIL_TEMPLATES_DIRECTORY, constants.EMAIL_TEMPLATES_NAMES),
           pages: getHtmlTemplates(changesetId, files, constants.PAGES_DIRECTORY, constants.PAGE_NAMES),
